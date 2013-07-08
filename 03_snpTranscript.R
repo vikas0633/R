@@ -1,0 +1,7 @@
+f=read.table('~/Desktop/temp/SNPeff_transcript_counts.txt')
+names<-c("Cufflinks","Augustus","GlimmerHMM","GeneMark")
+data<-c(17/20,14/20,17/20,18/20)
+op <- par(mar = c(8,2,2,2) + 0.1)
+barplot(data*100, width=c(0.1,0.1,0.1,0.1),col = gray.colors(4),xlim=c(0,1.5), las=3, names.arg=names,space=0.6)
+title(main = list("% of NCBI genes predicted ", font = 4))
+dev.off()
