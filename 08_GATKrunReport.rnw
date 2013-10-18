@@ -1,0 +1,1018 @@
+%% LyX 2.0.6 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass{article}
+\usepackage[sc]{mathpazo}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+\setcounter{secnumdepth}{1}
+\setcounter{tocdepth}{1}
+\usepackage{url}
+\usepackage[unicode=true,pdfusetitle,
+ bookmarks=true,bookmarksnumbered=true,bookmarksopen=true,bookmarksopenlevel=2,
+ breaklinks=false,pdfborder={0 0 1},backref=false,colorlinks=false]
+ {hyperref}
+\hypersetup{
+ pdfstartview={XYZ null null 1}}
+\usepackage{breakurl}
+\usepackage{listings}
+\lstloadlanguages{Python}
+\usepackage{pgfplotstable}
+\usepackage{csvsimple}
+\begin{document}
+\definecolor{keywords}{RGB}{255,0,90}
+\definecolor{comments}{RGB}{0,0,113}
+\definecolor{red}{RGB}{160,0,0}
+\definecolor{green}{RGB}{0,150,0}
+ 
+\lstset{language=Python, 
+        basicstyle=\ttfamily\small, 
+        keywordstyle=\color{keywords},
+        commentstyle=\color{comments},
+        stringstyle=\color{red},
+        showstringspaces=false,
+        identifierstyle=\color{green},
+        procnamekeys={def,class}}
+        
+\renewcommand\thesection{\arabic{section}}
+
+%%% for TOC with numbering
+
+
+\begin
+
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+# set global chunk options
+opts_chunk$set(fig.path='figure/minimal-', fig.align='center', fig.show='hold')
+options(replace.assign=TRUE,width=90)
+@
+
+
+\title{GATK run report}
+
+
+\author{Vikas Gupta, Niraj Shah and Stig U. Andersen}
+
+\maketitle
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{4}
+\tableofcontents
+\newpage
+
+GATK is an acronym for Genome analysis toolkit, a detailed documentation can be found at \url {http://www.broadinstitute.org/gatk/guide/}.  \textbf{GATK} pipeline can used for detecting the variants from multi-sample data. One of the problem with the variant detection is the misaligned reads, this issue has been addressed in GATK by considering the per-base quality score which represents the probability that the base called in the read is true sequenced base. These per-base quality scores are quite inaccurate (Mark A DePristo et.al 2011) and depends on the experimental setup and technology used. These errors are eliminated from the GATK using empirically accuarate per-base error model.
+\newline 
+
+% add dot after number
+\makeatletter
+\g@addto@macro\thesection.
+\makeatother
+
+\section{Introduction}
+Here we have utilized sequencing data from MG20, Gifu, Burttii and 28 additional accessions. Using this data we aim to annotate the genetic variants such as SNPs and Indels in the \textit {Lotus japonicus}.
+
+
+\section{WorkFlow}
+
+
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.60]{/Users/vgupta/Desktop/03_Lotus_annotation/2013_week35/BPP-wRR-white_small.png}
+\caption{\label{GATK workflow}Three sections of GATK pipeline} 
+\end{figure}
+
+We have divided work here into four major points:
+\newline 1. Initial read mapping
+\newline 2. Local realignment around indels
+\newline 3. Base quality score recalibration
+\newline 4. SNP and indel detection
+
+
+\subsection{Fastq Mapping}
+Fastq files were mapped to the Lotus genome 3.0 using the BWA version-0.7.5a-r405 with default parameters and with appropriate insert size for the pair-end libraries.  GATK pipeline does not support files without read groups so these were added whenever necessary with Picard \textit {AddOrReplaceReadgroup} function. All the mapped files are placed at genome.au.dk. 
+\url {/home/vgupta/LotusGenome/100_data/01_Jin_BamFile/02_withReadGroup}.
+
+\subsection{Duplicate Marking}
+
+Duplicates were filtered using Picard toolkit version 1.96. Two things to remember when using Picard for duplicate filtering:
+\newline 1. Set \textit{VALIDATION\_STRINGENCY=LENIENT} otherwise Picard will not accept umapped read positions.
+\newline 2. Use \textit{TMP\_DIR} variable to a folder where you have sufficient space.\newline
+
+\subsection{Realiging the reads}
+Duplicate filtered reads are mapped back on the genome using RealignerTargetCreator and IndelRealigner commands from the GATK. All the fastq files must follow the sanger quality encoding. IndelRealigner locally aligns the reads to minimize the mismatches. Also many reads are misaligned due to presence of insertions and deletions, leading to many false discoveries of SNPs. 
+
+\subsection{Unified genotyper}
+Realigned bam files are parsed through the unified genotyper to procude a primary list of snp and indel list. -glm BOTH option must be used to predict indels together with SNPs. A higher degree of calling confidence cut-off can be used to insure minimal false positives. Unified genotyper uses a Bayesian genotype likelihood model to find genotypes and allele frequency in a population of N samples. It provides a posterior probability of there being a segregating variant allele at each locus as well as for the genotype of each sample.
+
+\subsection{Base Recalibrator}
+In this step, base quality scores are recalibrated. Given a set of high confidence SNPs from the earlier step, program calculates an empirical probability of error given the particular covariates seen at this site, where p(error) = num mismatches / num observations. 
+
+
+% <<plot_PhredQualDistri>>=
+% d <- read.table(
+%   pipe("cut -f6 ~/Desktop/03_Lotus_annotation/2013_week35/snp.90.vcf | grep -v '^#'")
+%   ,sep='\t',header=T)
+% length(d[which(d$QUAL>5000),])
+% tdens=density(log10(d$QUAL))
+% xlab = "Log10 PhredQual"
+% ylab = "Density"
+% main = "PhredQual distribution"
+% plot(tdens, lwd = 5, col = "red", ylab = ylab, xlab = xlab, main = main, 
+%      cex.main = 2, cex.lab = 2, cex.axis = 2, mar = c(0.5, 0.5, 0.5, 0.5))
+% @
+
+\pagebreak
+\section{Callable loci}
+Genome-wide Callable loci destribution
+
+SNP VCF based analysis
+
+<<SNP destribution Sliding Window>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/01_CallLociWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',header=F, sep="\t", ,comment.char = "#")
+for(i in 1:length(chr)) {
+tmp_chr <- tmp[which(chr[i]==tmp$V1),]
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V3,f=1/10)
+plot(tmp_chr$V2,tmp_chr$V3, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+}
+dev.off()
+@
+
+\pagebreak
+\section{SNP destribution}
+Genome-wide SNP density destribution
+
+<<SNP destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/02_snpDenWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V4, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V4, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+
+
+<<Depth destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/03_DepthWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V5, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V5, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+
+<<genotypeCalls destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/04_genotypeCallsWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V6, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V6, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+
+<<genotypeCallsHete destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/05_genotypeCallsHeteWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V7, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V7, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+
+
+
+<<genotypeCallsHete destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/06_genotypeCallsHomoWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V8, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V8, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+<<InbreedingCoeffs destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/07_InbreedingCoeffsWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V9, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V9, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+<<HaplotypeScores destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/08_HaplotypeScoresWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.snps.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V10, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V10, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+ 
+Indels VCF based analysis
+
+<<indel destribution Sliding Window>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/01_CallLociWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+
+for(i in 1:length(chr)) {
+tmp_chr <- tmp[which(chr[i]==tmp$V1),]
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V3,f=1/10)
+plot(tmp_chr$V2,tmp_chr$V3, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+}
+dev.off()
+@
+
+
+<<indel destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/02_indelDenWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+head(tmp_chr)
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V4, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V4, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+
+
+<<Depth destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/03_DepthWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V5, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V5, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+
+<<genotypeCalls destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/04_genotypeCallsWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V6, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V6, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+
+<<genotypeCallsHete destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/05_genotypeCallsHeteWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V7, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V7, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+
+
+
+<<genotypeCallsHete destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/06_genotypeCallsHomoWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V8, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V8, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+<<InbreedingCoeffs destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/07_InbreedingCoeffsWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V9, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V9, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+<<HaplotypeScores destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week39/08_HaplotypeScoresWindowindel.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '~/Desktop/03_Lotus_annotation/2013_week39/20130905.snp.vcf.markers.indels.inbreed.ref.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+indelden_smooth <- lowess(tmp_chr$V2,tmp_chr$V10, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V10, type="p", main="indel Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(indelden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+
+
+\pagebreak
+\section{Callable loci No Burttii and Gifu}
+Genome-wide Callable loci destribution
+
+SNP VCF based analysis
+
+<<SNP destribution Sliding Window>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/01_CallLociWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+
+for(i in 1:length(chr)) {
+tmp_chr <- tmp[which(chr[i]==tmp$V1),]
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V3,f=1/10)
+plot(tmp_chr$V2,tmp_chr$V3, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+}
+dev.off()
+@
+
+\pagebreak
+\section{SNP destribution}
+Genome-wide SNP density destribution
+
+<<SNP destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/02_snpDenWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w1000.s100',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V4, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V4, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=1.7, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+
+
+<<Depth destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/03_DepthWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V5, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V5, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+
+<<genotypeCalls destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/04_genotypeCallsWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V6, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V6, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+
+<<genotypeCallsHete destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/05_genotypeCallsHeteWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w1000.s100',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V7, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V7, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=1.7, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+
+
+
+<<genotypeCallsHete destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/06_genotypeCallsHomoWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V8, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V8, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+<<InbreedingCoeffs destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/07_InbreedingCoeffsWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V9, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V9, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+ 
+<<HaplotypeScores destribution>>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/08_HaplotypeScoresWindowSNP.jpg", width=2600, 
+     height=2000, quality=90, units="px")
+chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+#chr=c("chr1")
+max_chr_length=67000000
+par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+tmp <- read.table(
+  '/Users/vgupta/Desktop/03_Lotus_annotation/2013_week40_noGifuBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.tbl.w10000.s1000',
+                  header=F, sep="\t", ,comment.char = "#")
+
+head(tmp)
+names(tmp)
+ 
+for(i in 1:length(chr)) {
+tmp_chr <- subset(tmp, (chr[i]==tmp$V1 & tmp$V3>0.5)) ### callable fraction has to be atleast half
+#tmp_chr <- subset(tmp, (chr[i]==tmp$V1)) ### callable fraction has to be atleast half
+head(tmp_chr)
+snpden_smooth <- lowess(tmp_chr$V2,tmp_chr$V10, f=1/1000)
+plot(tmp_chr$V2,tmp_chr$V10, type="p", main="snp Density", 
+     xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+     cex.axis=2)
+#abline(h=0, lwd=2)
+legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+#lines(snpden_smooth, lwd=5, col="blue")
+ }
+ dev.off()
+ @
+
+ 
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.20]{/Users/vgupta/Desktop/03_Lotus_annotation/2013_week35/snpDen.jpg}
+\caption{\label{SNP distribution}SNP distribution} 
+\end{figure}
+
+\pagebreak
+
+% <<SNP destribution Sliding Window>>=
+% jpeg("~/Desktop/03_Lotus_annotation/2013_week35/snpDenWindow.jpg", width=2600, 
+%      height=2000, quality=90, units="px")
+% chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+% max_chr_length=67000000
+% par(mfcol=c(6,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+% tmp <- read.table(
+%   '~/Desktop/03_Lotus_annotation/2013_week35/snp.90.PhredQual_5000.vcf.snpden',
+%                   header=T, sep="\t", ,comment.char = "#")
+% 
+% head(tmp)
+% names(tmp)
+% 
+% for(i in 1:length(chr)) {
+% tmp_chr <- tmp[which(chr[i]==tmp$CHROM),]
+% snpden <- cbind(tmp_chr$BIN_START,tmp_chr$SNP_COUNT)
+% snpden_smooth <- lowess(tmp_chr$BIN_START,tmp_chr$SNP_COUNT,f=1/1000)
+% plot(tmp_chr$BIN_START, tmp_chr$SNP_COUNT, type="p", main="snp Density", 
+%      xlim=c(0,max_chr_length), col="red", las=1, ann="FALSE", cex=0.3, 
+%      cex.axis=2)
+% #abline(h=0, lwd=2)
+% legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+% lines(snpden_smooth, lwd=10, col="blue")
+% }
+% dev.off()
+% @
+
+\pagebreak
+\section{Heterozygosity destribution}
+Genome-wide heterozygosity distribution
+
+% <<Heterozygosity destribution>>=
+% 
+% tmp <- read.table(
+%   pipe("cut -f 1,2,3,4,5 ~/Desktop/03_Lotus_annotation/2013_week35/sample.hwe"),
+%   header=T, comment.char = "#",row.names=NULL)
+% 
+% jpeg("~/Desktop/03_Lotus_annotation/2013_week35/Heterozygosity.jpg", 
+%      width=4600, height=6000, quality=90, units="px")
+% chr=c("chr1","chr2","chr3","chr4","chr5","chr6")
+% max_chr_length=67000000
+% par(mfcol=c(18,1), mar=c(2.5,2.5,2.5,2.5), oma=c(1,2,1,1))
+% head(tmp)
+% names(tmp)
+% 
+% for(i in 1:length(chr)) {
+% tmp_chr <- tmp[which(chr[i]==tmp$CHR),]
+% homo <- tmp_chr$OBS.HOM1 + tmp_chr$HOM2.
+% total_count <- tmp_chr$OBS.HOM1 + tmp_chr$HET + tmp_chr$HOM2.
+% fract <- tmp_chr$HET / total_count
+% 
+% length(fract)
+% 
+% plot(tmp_chr$POS, fract, type="p", main="snp Density", xlim=c(0,max_chr_length),
+%      ylim=c(0,1.2), col="red", las=1, ann="FALSE", cex=0.3, cex.axis=2)
+% abline(h=0.5, lwd=2)
+% snpden_smooth <- lowess(tmp_chr$POS,tmp_chr$HET,f=1/10000)
+% plot(tmp_chr$POS, tmp_chr$HET, type="l", main="snp Density", 
+%      xlim=c(0,max_chr_length), col="light blue", las=1, ann="FALSE", cex=0.3, 
+%      cex.axis=2)
+% lines(snpden_smooth, lwd=5, col="blue")
+% snpden_smooth <- lowess(tmp_chr$POS,homo,f=1/10000)
+% plot(tmp_chr$POS, homo, type="l", main="snp Density", xlim=c(0,max_chr_length), 
+%      col="pink", las=1, ann="FALSE", cex=0.3, cex.axis=2)
+% lines(snpden_smooth, lwd=5, col="red")
+% #abline(h=0, lwd=2)
+% legend("topright",chr[i],cex=2.8,col=1:20,lty=1:20)
+% }
+% dev.off()
+% @
+
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.07]{/Users/vgupta/Desktop/03_Lotus_annotation/2013_week35/Heterozygosity.jpg}
+\caption{\label{Heterozygosity distribution}Heterozygosity distribution} 
+\end{figure}
+
+
+%\begin{table}
+%\pgfplotstabletypeset[
+%    col sep=tab,
+%    string type,
+%    every head row/.style={before row=\hline,after row=\hline},
+%    every last row/.style={after row=\hline}]{/Users/vgupta/Desktop/03_Lotus_annotation/20130904_rawMappedReads.txt}
+%\caption{\label{Reads mapped on Lotus genome}Reads mapped on Lotus genome} 
+%\end{table}
+
+\pagebreak
+\subsection{Mapping on Lotus Genome}
+\begin{table}[!htbp] 
+\centering
+\csvautotabular{/Users/vgupta/Desktop/03_Lotus_annotation/20130904_rawMappedReads.txt}
+\caption{\label{Reads mapped on Lotus genome}Reads mapped on Lotus genome} 
+\end{table}
+
+\pagebreak
+\subsection{Average coverage on Lotus Genome}
+\begin{table}[!htbp] 
+\centering
+\csvautotabular{/Users/vgupta/Desktop/03_Lotus_annotation/2013_week35/Coverage.txt}
+\caption{\label{Average Coverage of re-sequenced lines}Average Coverage of re-sequenced lines} 
+\end{table}
+
+\pagebreak
+\subsection{Inbreeding coefficient}
+A good example of calculating the F (Inbreeding co-efficient) is explained at \url {http://www.uwyo.edu/dbmcd/popecol/maylects/fst.html}.
+Hardy-Weinberg Equilibrium calculates values of p and q based on the dominant alleles and using p and q values calculates expected genotype counts. Based on the diffences on genotypic counts, we can catogerize a popultation as perfect fit, homozygtes excessive (inbreed) or homozygotes deficient (isolate breaking). 
+
+
+\section{Parsing VCF}
+Note: Total depth on a given position doesn't add up to sum of individual sample read depth. Explanation is copied from \url {http://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_sting_gatk_walkers_annotator_Coverage.html}.
+
+\newline While the sample-level (FORMAT) DP field describes the total depth of reads that passed the caller's internal quality control metrics (like MAPQ > 17, for example), the INFO field DP represents the unfiltered depth over all samples. Note though that the DP is affected by downsampling (-dcov), so the max value one can obtain for N samples with -dcov D is N * D.
+
+\pagebreak
+\subsection{Heterozygosity}
+We have measured the level of heterozygosity using the final vcf file produced by GATK. It reports a total of 394,861,527 base-pairs which includes all the callable sites. 5,280,517 markers(SNPs and Indels) were detected. Expect a small fraction of 40,000, all 1.39 million makers from prior analysis were recovered. MG20 echotype has been inbreed for many generations and expected to be highly homozygous but due to error in the mapping and assembly, we found a high fraction of markers were heterozygous across the genome. To remove these potentially false positive markers, we filtered all the markers where genotype call was not 0/0 (reference based homozygous) for the MG20 resulted into a set of 3,989,842 markers among MG20, Gifu, Burttii and 28 re-sequenced. Lines in the analysis seems to highly homozygous hence can be analysed as haploid.    
+
+\begin{table}[!htbp] 
+\centering
+\csvautotabular{/Users/vgupta/Desktop/03_Lotus_annotation/2013_week35/20130906_hetero.csv}
+\caption{\label{Heterozygocity of all the lines}Heterozygocity of all the lines} 
+\end{table}
+
+\pagebreak
+\subsection{Marker filtering criteria}
+Low quality mappings should be filtered before we consolidate a high confident marker list. We need a filtering criteria to remove false positive markers, similar filtering stradegy must be used for also considering the callable fraction of the genome. To startwith we are considering three parameters for the filtering, QUAL (phred-scaled quality score) values, FILTER categories and the MQ (RMS mapping quality).
+\newline
+\subsubsection{Counting filtering categories}
+\newline [vgupta@fe1 02\_withReadGroup]$ cut -f 7\ 20130905.snp.vcf |\ sort |\ uniq -c
+\newline 228,849,923\ .
+\newline 166,011,565\ LowQual
+\newline
+
+\subsubsection{Average QUAL value}
+\newline [vgupta@s01n14 02\_withReadGroup]$ grep -v '#' 20130905.snp.vcf | awk '{ if(min==""){min=max=$6}; if(($6)>max) {max=($6)}; if(($6)< min) {min=$6}; total+=($6); count+=1} END {print total,total/count, min, max}'
+\newline Total: 3.86946e+12  Average:9,799.54 Min:. Max:34,359,763,362.97
+
+\subsubsection{MG20 homozygous positions}
+A total of 394,861,527 positions were reported using Unified Genotyper, of which, 307,385,387 positions were homozygous for MG20. We also filtered the vcf file for all the positions where MG20 was the only sample with the coverage, resulting positions will be refered as Callable Loci which consist a total of 301,306,971 genomic positions.
+
+
+\subsubsection{Variant annotation}
+Using SNPeff \url {http://snpeff.sourceforge.net/SnpEff_manual.html}, we have annotated 1,354,324 snps and 234,209 indels. VCF files for respective data are as following:
+\newline \url {/u/pm/data/2013_09_11_lotus_snps/20130905.snp.vcf.markers.snps.inbreed.ref}
+\newline \url {/u/pm/data/2013_09_11_lotus_snps/20130905.snp.vcf.markers.indels.inbreed.ref}
+
+
+
+\pagebreak
+\section{Python Script}
+\lstinputlisting [numbers=left,style=Python,caption=GATK pipeline,
+    label={116_runGATK.py},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/116_runGATK.py}
+\lstinputlisting [numbers=left,style=Python,caption=vcfParser,
+    label={119_vcfParser.py},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/119_vcfParser.py}
+\lstinputlisting [numbers=left,style=Python,caption=classVCF,
+    label={classVCF.pyy},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/classVCF.py}
+
+
+\end{document}

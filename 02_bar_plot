@@ -1,0 +1,13 @@
+### script to make bar plot
+
+mydata = read.table("temp", header=FALSE, sep = ' ' )  # read text file
+
+head(mydata)
+### save the plot
+#png(paste(Sys.time(),"barplot.png",sep='_'))
+png(paste("Gap_counts","barplot.png",sep='_'))
+
+### make hist plot
+barplot(mydata[,2], names.arg=mydata[,1],main="Gap Counts", xlab=" Chromosomes ")
+
+dev.off()

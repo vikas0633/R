@@ -1,0 +1,21 @@
+\contentsline {section}{\numberline {1.}Introduction}{2}{section.1}
+\contentsline {section}{\numberline {2.}WorkFlow}{2}{section.2}
+\contentsline {subsection}{\numberline {2..1}Fastq Mapping}{2}{subsection.2.1}
+\contentsline {subsection}{\numberline {2..2}Duplicate Marking}{3}{subsection.2.2}
+\contentsline {subsection}{\numberline {2..3}Realiging the reads}{3}{subsection.2.3}
+\contentsline {subsection}{\numberline {2..4}Unified genotyper}{3}{subsection.2.4}
+\contentsline {subsection}{\numberline {2..5}Base Recalibrator}{3}{subsection.2.5}
+\contentsline {section}{\numberline {3.}Callable loci}{4}{section.3}
+\contentsline {section}{\numberline {4.}SNP destribution}{5}{section.4}
+\contentsline {section}{\numberline {5.}Heterozygosity destribution}{6}{section.5}
+\contentsline {subsection}{\numberline {5..1}Mapping on Lotus Genome}{7}{subsection.5.1}
+\contentsline {subsection}{\numberline {5..2}Average coverage on Lotus Genome}{8}{subsection.5.2}
+\contentsline {subsection}{\numberline {5..3}Inbreeding coefficient}{9}{subsection.5.3}
+\contentsline {section}{\numberline {6.}Parsing VCF}{9}{section.6}
+\contentsline {subsection}{\numberline {6..1}Heterozygosity}{10}{subsection.6.1}
+\contentsline {subsection}{\numberline {6..2}Marker filtering criteria}{11}{subsection.6.2}
+\contentsline {subsubsection}{\numberline {6..2.1}Counting filtering categories}{11}{subsubsection.6.2.1}
+\contentsline {subsubsection}{\numberline {6..2.2}Average QUAL value}{11}{subsubsection.6.2.2}
+\contentsline {subsubsection}{\numberline {6..2.3}MG20 homozygous positions}{11}{subsubsection.6.2.3}
+\contentsline {subsubsection}{\numberline {6..2.4}Variant annotation}{11}{subsubsection.6.2.4}
+\contentsline {section}{\numberline {7.}Python Script}{12}{section.7}

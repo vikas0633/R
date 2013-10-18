@@ -1,0 +1,634 @@
+Processing counts data
+========================================================
+  
+  The file contains code for processing raw counts data output by countReadsWithSamtools.py. The script countReadsWithSamtools.py reads a file of gene model annotations, calculates the extent of the gene by taking the smallest start and the largest end of all the gene models belonging to that gene, and then uses samtools to (`samtools view -c`) to get the number of reads per region. It also assumes that gene models with the same prefix come from the same gene. For example, AT1G07350.1 and AT1G07350.2 are gene models representing alternative transcripts transcribed from gene AT1G07350. 
+
+Note that there is a slight flaw in this. If two different genes overlap (e.g., the five prime end of one is the three prime end of another) then reads that fall into this region of overlap will be counted for both. 
+
+Structure of the experiment
+---------------------------
+  
+  The samples come from two experiment performed in the same time period. Dr. Loraine grew Arabidopsis plants in several shallow pots named A, B, C, etc. After around 2.5 weeks, she stopped watering a randomly selected group of the pots. After the soil had dried out, she collected time point one (T1) drought stress treatment and control plants. Only the leaves were collected. While collecting the drought treatment plants, she moved a set of pots to a Percival set to 38 degrees C. After three hours, she collected plants from heat-treated and non-heat-treated pots - these were time point T1 of the heat treatment experiment. She then returned the pots to the 22 degrees Percival. The next day (24 hours later) she collected all plants that underwent the heat treatment the day before along with several controls - these were T2 (time point two) heat treatment plants. A few days later she collected the remaining drought treatment plants and their controls. These were time point two (T2) of the drought treatment. 
+
+Data munging
+========================================================
+  
+The code below:
+  
+* reads countReadsWithSamtools.py output file and transforms it into a table
+* downloads and adds gene information (symbol, probe sets, etc.)
+* writes out the table to a "tsv" (tab-separated value) file
+
+Methods
+-------
+Read the data, clean it up, reshape into a format we can use for data analysis.
+
+Remove all the extra rows representing columns headers from previous data processing steps.
+
+```{r}
+fname='heat_drought_2010_TH2.0.5_read_counts.txt'
+d=read.csv(fname,header=F)
+headerrows=which(d[,1]=='gene')
+d=d[-headerrows,]
+head(d)
+names(d)=c('gene','sample','count')
+d$count=as.numeric(as.character(d$count))
+```
+
+The data are in long form, with the name of the BAM file in the second column. The BAM file names correspond to samples. To do data analysis with Bioconductor tools, 
+we need treat each sample as a variable and each gene as an observation. So we need to make samples into columns and genes into rows.
+
+This was helpful: http://www.statmethods.net/management/reshape.html.
+
+```{r}
+# to install, install.packages('reshape')
+library(reshape)
+d=cast(d,gene~sample) # gloat - one line of R!
+```
+
+Now we need the gene information. Download the gene information file from IGBQuickLoad.org.
+
+```{r}
+fname='gene_info.txt.gz'
+if (!file.exists(fname)) { # only download if it's not here already
+  u='http://www.igbquickload.org/quickload/A_thaliana_Jun_2009/'
+  u=paste0(u,fname)
+  download.file(u,fname,'wget') 
+  # on Mac you may have to install wget
+}
+```
+
+Read gene information from downloaded file.
+
+```{r}
+gene_info=read.delim(fname,header=T,sep='\t')
+```
+
+Merge gene information with counts information. Fix sample names.
+
+```{r}
+newd=merge(gene_info,d,by.x='AGI',by.y='gene')
+newnames=as.character(sapply(names(newd),function(x){gsub('.sm.bam','',x)}))
+names(newd)=newnames
+d=newd
+```
+
+Extract subset of the data we'll analyze. The drought stress time point one (T1) samples had too few reads and many of the reads were PCR duplicates, so let's get rid of them and remove T2 from the column names.
+
+  
+```{r}
+drought=c("WetDT2","WetFT2","DryBT2","DryCT2","DryET2")
+heatT1=c("CoolL1T1","CoolL2T1","HotI1T1","HotI2T1","HotK1T1","HotK2T1")  
+heatT2=c("CoolHT2","CoolL1T2","HotI1T2","HotI2T2","HotK1T2","HotK2T2")
+all=c(drought,heatT1,heatT2)
+tokeep=c(1:6,which(names(d)%in%all))
+d=d[,tokeep]
+drought2=sapply(drought,function(x){gsub('T2','',x)})
+d=d[,c(names(d)[1:6],all)]
+newnames=as.character(c(names(d)[1:6],drought2,heatT1,heatT2))
+names(d)=newnames
+```
+
+Do a sanity-check. The gene AT1G07350 should be up in drought and heat, down in the controls.
+
+```{r}
+test.gene='AT1G07350'
+row=d[d$AGI==test.gene,]
+row[c(1,7:length(row))]
+```
+
+Make two tab-separated value data files - one for water stress (drought) and another for heat stress samples.
+
+```{r}
+fname='wet_dry_raw_counts.tsv'
+if (!file.exists(fname)) {
+  indexes=which(names(d)%in%drought2)
+  write.table(d[,c(1:6,indexes)],file=fname,sep='\t',row.names=F,quote=T)
+}
+fname='cool_hot_raw_counts.tsv'
+if (!file.exists(fname)) {
+  indexes=which(names(d)%in%c(heatT1,heatT2))
+  write.table(d[,c(1:6,indexes)],file=fname,sep='\t',row.names=F,quote=T)  
+}
+```
+
+
+Differential Expression Analysis of Drought Experiment
+========================================================
+
+The goal of this analysis is to build a list of genes that are differtially expressed under severe drought stress.
+
+In this file, we'll analyze time point one (T2) of the drought stress experiment described in ../CountsData/CountsData.html. The T2 time point consists of plants that underwent severe water deprivation stress and their corresponding non-stressed controls.
+
+Note that we can't analyze the T1 (time point one) plants because the libraries did not yield sufficient sequence data. 
+
+The counts data file we'll use has sample names WetD, WetF, DryB, DryC, DryE, which indicate treatment (Wet or Dry) and pot label (B,C,D,E, and F).
+
+Questions we aim to answer include
+
+* How many genes had zero counts in all T2 samples, including treatment and control?
+* How many genes are differentially expressed in T2 between treatment and control?
+* How many genes are up-regulated in T2?
+* How many genes are down-regulated in T2?
+
+Our naive expectation is that the extreme drought stress will result in differential expression of much of the genome, especially genes associated with stress and ABA signaling. 
+
+Data munging/cleaning
+-------------------------
+
+We don't need to do much of this since the data have already been processed and organized into columns of counts per gene. This was done in folder named CountsData. So load the data.
+
+```{r}
+fname='wet_dry_raw_counts.tsv'
+d=read.delim(fname,header=T,sep='\t')
+```
+
+The gene expression data set contains data for `r dim(d)[1]` genes.
+
+Analysis
+-------------------------
+
+Get a data frame with counts only and make a vector with sample labels.
+
+```{r message=FALSE,warning=FALSE}
+library(edgeR)
+counts=d[,7:ncol(d)] 
+rownames(counts)=d$AGI
+wet.indexes=grep('Wet',names(counts))
+dry.indexes=grep('Dry',names(counts))
+group=rep('NA',length(wet.indexes)+length(dry.indexes))
+group[wet.indexes]='W'
+group[dry.indexes]='D'
+cds=DGEList(counts,group=group)
+```
+
+Remove rows with zero counts.
+
+```{r}
+zeros=apply(cds$counts,1,sum)==0
+allzeros=sum(zeros)
+cds=cds[!zeros,]
+```
+
+There were `r allzeros` genes with zero counts in all `r ncol(counts)` samples.
+
+Normalize by library size, where library size is calculated from the number of reads overlapping the genes. 
+
+```{r}
+cds = calcNormFactors(cds)
+```
+
+Checking for bias
+-----------------
+
+Use multi-dimensional scaling to check for biases in the data.
+
+```{r fig.height=6,fig.width=6}
+main='MDS Plot for Count Data'
+plotMDS(cds,main=main,labels=colnames(cds$counts))
+```
+
+The plot looks good. Dimension 1 does a good job of separated treatment (Dry) from control (Wet) samples. 
+
+Estimating variance
+-------------------
+
+Estimate common dispersion. The common dispersion reflects the degree to which a gene's expression varies across sample types. The variance of the negative binomial model is a function of the mean, where variance(mean) = mean + mean**2 * ph. For the Poisson, v(mean) = mean and the standard deviations are the square roots of the variances. 
+
+For example, suppose a gene has a mean count of 200. Then the standard devisions under poisson is 200. Under negative binomial it's sqrt(200+200^2 * cds$common.dispersion) Note that the NB sd is larger.
+
+```{r}
+cds = estimateCommonDisp(cds)
+cds$common.dispersion # the estimate
+```
+
+Once the common dispersion is estimated, we estimate the tagwise dispersion,
+meaning, the dispersion for individual genes. Each gene will get its own unique dispersion estimate, but we'll use the common dispersion in the estimate. The tagwise dispersions will get squeezed toward the common value. The amount of squeezing is governed by the parameter prior.n. The larger prior.n, the closer the estimates will be to the common dispersion. EdgeR developers recommend we use the nearest integer to 50 / (# samples - $ groups). 
+
+```{r}
+prior.df=50/(ncol(counts)-length(unique(group)))
+cds=estimateTagwiseDisp(cds,prior.n=prior.df)
+# as before, cds is returned and has new data associated with it
+names(cds)
+summary(cds$tagwise.dispersion)
+```
+
+Visualize the relationship between mean expression and variance.
+
+```{r fig.height=5,fig.width=7}
+plotMeanVar(cds,
+  show.raw.vars=T,
+  show.tagwise.vars=T,
+  NBline=T,
+  show.binned.common.disp.vars=F,
+  show.ave.raw.vars=F,
+  dispersion.method="qcml",
+  nbins=100,pch=16,
+  xlab="Mean Expression (Log10 Scale)",
+  ylab="Variance (Log10 Scale)",main="Mean-Variance Plot")
+```
+
+Move on now to differential expression analysis.
+
+```{r}
+dex=exactTest(cds,dispersion="tagwise",pair=c("W","D"))
+dex.padj=p.adjust(dex$table$PValue[dex$table$logFC!=0],method="BH")
+```
+
+Write out the data.
+
+```{r}
+res=data.frame(AGI=rownames(cds$counts),
+            logFC=dex$table$logFC,
+  p.adj=dex.padj,
+  cpm(cds$counts))
+res=res[order(dex.padj),]
+```
+
+Add gene information and write a table to disk.
+
+```{r}
+fname='WetDry.tsv'
+gene_info=d[,1:6]
+res=merge(gene_info,res,by.x='AGI',by.y='AGI')
+res=res[order(res$p.adj),]
+write.table(res,file=fname,row.names=F,sep='\t',quote=T)
+```
+
+There were `r sum(res$p.adj<=0.05)` genes with adjusted p value of 0.05 or less. Of these, `r sum(res$p.adj<=0.05&res$logFC>0)` were up-regulated by the treatment and `r sum(res$p.adj<=0.05&res$logFC<0)` were down-regulated by the treatment. 
+
+Conclusion
+==========
+
+The experiment triggered differential expression of a large percentage of genes in the genome. 
+
+Answer to the original questions are:
+ 
+* There were a total of `r length(res$p.adj)` genes.
+* `r allzeros` genes with zero counts.
+* `r sum(res$p.adj<=0.05)` genes were differentially expressed.
+* `r sum(res$p.adj<=0.05&res$logFC>0)` were up-regulated.
+* `r sum(res$p.adj<=0.05&res$logFC<0)` were down-regulated.
+
+
+
+GOSeq Drought Stress Experiment 
+========================================================
+
+This R markdown document describes using GOSeq to determine GO categories that are over-represented among differentially expressed genes in the severe drought stress experiment. 
+
+The major question this anlaysis asks is:
+
+What types of genes are unusually abundant among genes that are up- or down-regulated in plants undergoing severe drought stress.
+
+We'll look at up- and down-regulated genes separately, since the types of genes that are induced by drought are probably very different from those that are suppressed by drought stress. 
+
+```{r}
+f=paste(getwd(),'DEplot.png',sep='/')
+#source("http://bioconductor.org/biocLite.R")
+#biocLite("goseq")
+```
+
+Methods
+-------------------------
+
+GOSeq tries to correct for size biases when identifying enriched GO categories among differentially expressed genes from RNA-Seq experiments.
+
+To correct for size bias, the analysis needs to include transcript size.
+
+For Arabidopsis, we can get this information from the public QuickLoad repository as follows:
+
+
+
+```{r}
+fname='tx_size.txt.gz'
+if (!file.exists(fname)) {
+  u='http://www.igbquickload.org/quickload/A_thaliana_Jun_2009/'
+  todownload=paste0(u,fname)
+  download.file(todownload,fname,'wget') 
+}
+sizes=read.delim(fname,header=T,sep='\t')
+```
+
+Read results from differential expression analysis.
+
+```{r}
+fname='WetDry.tsv'
+results=read.delim(fname,sep='\t',header=T)
+```
+
+Join differential expression results with transcript length information.
+
+```{r}
+d=merge(results,sizes,by.x='AGI',by.y='locus')
+```
+
+View a histogram of transcript sizes. The plot should be approximately log-normal.
+
+```{r}
+tdens=density(log10(d$bp))
+xlab = "Log10 Length (bp)"
+ylab = "Density"
+main = "Length distribution"
+plot(tdens, lwd = 5, col = "red", ylab = ylab, xlab = xlab, main = main, cex.main = 2, 
+    cex.lab = 2, cex.axis = 2, mar = c(0.5, 0.5, 0.5, 0.5))
+```
+
+There's a weird peak around 1.75. What is that? Maybe there was a bug in the code that generates the transcript sizes? - No, its the same when looking at the data from the TAIR10 using BioMart
+
+Note that the median size (in base pairs) is `r median(d$bp)` and the mean is `r mean(d$bp)`.
+
+Devide the data into up/down regulated
+-------------------------
+
+
+```{r}
+d.1=data.frame(d,p.de=as.integer(d$p.adj<.05))
+```
+
+
+Devide the data into up/down regulated
+-------------------------
+
+```{r}
+d_up=d.1[which((d.1$logFC)>=0),] ### For up-regulation
+d_down=d.1[which((d.1$logFC)<0),] ### for down-regulation
+d.2=d_up
+length(which(d.2$p.de==1))
+```
+
+check if something missing. We started with `r length(d[,1])` and now I have `r length(d_up)+length(d_down)`.
+
+Convert the fold changes to 1s and 0s, where 1 is differentially expressed and 0 is not.
+-------------------------
+I have changed EdgeR script
+```{r}
+gene.vector=d.2$p.de
+names(gene.vector)=d.2$AGI
+unique(gene.vector)
+length(gene.vector)
+```
+
+make a length vector
+
+```{r}
+length.vector=d.2$bp
+names(length.vector)=d.2$AGI
+length(length.vector)
+head(length.vector)
+```
+
+
+plot random DE distribution across the Gene bins based length distribution
+``` {r}
+set.seed(1)
+sample.vector = sample(c(0,1),length(gene.vector),replace = TRUE, prob = c(0.95,0.05))
+names(sample.vector) = names(gene.vector)
+### test the plot
+library(goseq)
+pwf<-nullp(sample.vector,bias.data=length.vector)
+plotPWF(pwf,binsize=10)
+```
+
+Test the DE distribution with the length based bins
+
+``` {r}
+de.test.vector=c()  ### vector to store DE frection
+len.vector=c()   ### vector to store the length ranges
+counts.vector=c()   ### vector to store the gene counts in size range
+for (i in seq(0,10000, by=200))
+{
+  len.vector[length(len.vector)+1]=i 
+  de.1 = length(which(((d$bp>=i)&(d$bp<i+200))&(d$p.adj==1)))
+  de.all = length(which((d$bp>=i)&(d$bp<(i+200))))
+  de.test.vector[length(de.test.vector)+1] = de.1/de.all
+  counts.vector[length(counts.vector)+1]=de.all
+}
+de.test.vector
+len.vector
+counts.vector
+
+dfx = data.frame(ev1=len.vector, ev2=de.test.vector, ev3=counts.vector)
+symbols(x=dfx$ev1, y=dfx$ev2, circles=dfx$ev3, inches=1/10, bg="steelblue2", fg=NULL, xlab="Gene Length", ylab="% DE",main=NULL) 
+library(graphics)
+grid(nx=NULL, ny=NULL,col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
+
+```
+
+make a GO two column data frame
+```{r}
+library(base)
+fname='gene_ontology_ext.obo'
+if (!file.exists(fname)) {
+  u='http://geneontology.org/ontology/obo_format_1_2/'
+  todownload=paste0(u,fname)
+  download.file(todownload,fname,'wget') 
+}
+
+fname='gene_association.tair.gz'
+if (!file.exists('gene_association.tair')) {
+  u='http://viewvc.geneontology.org/viewvc/GO-SVN/trunk/gene-associations/'
+  todownload=paste0(u,fname)
+  download.file(todownload,fname,'wget') 
+}
+
+if (!file.exists('merged_GO_TAIR_data.txt'))
+  {
+  system('gunzip -d gene_association.tair.gz')
+  
+  system('python 0_scripts/28a_obo_parser.py -i gene_ontology_ext.obo -c name,namespace,def > gene_ontology_ext.obo.out')
+  system('grep biological_process gene_ontology_ext.obo.out > temp')
+
+  system('nice -n 19 python 0_scripts/104_intersect_files_column.py --file2 gene_association.tair --file1 temp  --col2  11,5,7,9 --col1  1,2,3,4 --key2 5 --key1 1 > merged_GO_TAIR_data.txt')
+  }
+
+library(utils)
+go.ids=read.table(pipe("cut -f5,2 merged_GO_TAIR_data.txt"))
+head(go.ids)
+```
+
+GO analyisis
+-------------------------
+6.5.1 Fitting the Probability Weighting Function (PWF)
+
+```{r}
+library(goseq)
+pwf<-nullp(gene.vector,bias.data=length.vector)
+plotPWF(pwf,binsize=1)
+head(pwf)
+```
+
+6.5.2 Using the Wallenius approximation
+```{r}
+GO.wall=goseq(pwf,gene2cat=go.ids)
+head(GO.wall)
+```
+
+6.5.3  Using random sampling
+```{r message=FALSE, warning=FALSE, comment=NA, include=FALSE}
+GO.samp=goseq(pwf,gene2cat=go.ids,method="Sampling",repcnt=1000)
+head(GO.samp)
+
+plot(log10(GO.wall[,2]), log10(GO.samp[match(GO.samp[,1],GO.wall[,1]),2]), xlab="log10(Wallenius p-values)", ylab="log10(Sampling p-values)", xlim=c(-3,0))
+abline(0,1,col=3,lty=2)
+```
+
+Select a differentially regulated list of GO terms from random sampling
+``` {r}
+GO.wall.p.adj=data.frame(GO.wall,p.adj=p.adjust(GO.wall$over_represented_pvalue,method='BH'))
+head(GO.wall.p.adj)
+GO.wall.sig=GO.wall.p.adj[which(GO.wall.p.adj$p.adj<0.05),]
+length(GO.wall.sig[,1])
+head(GO.wall.sig)
+```
+Total number of significant differentially regulated gene categories: `r length(GO.wall.sig[,1])`.
+
+Make a join dataframe containing GeneID, GOs and DE
+``` {r}
+head(gene.vector)
+gene.dataframe = data.frame(gene.vector)
+head(gene.dataframe)
+d.2.GO=merge(go.ids,d.2,by.x='V2',by.y='AGI')
+head(d.2.GO)
+```
+
+Make the %DE vs Categories barplot
+
+``` {r}
+### get %DE values for each Category
+colnames(d.2.GO)[2]="GO"
+head(d.2.GO)
+cat.perc=c()
+GO.wall.sig=GO.wall.sig[1:20,]
+cat.size=c() ### size of each category where it is upregulated
+for (cat in GO.wall.sig$category)
+  {
+  cat.len = length(which(d.2.GO$GO==cat))
+  cat.len.de = length(which((d.2.GO$GO==cat)&(d.2.GO$p.de==1)))
+  cat.perc[length(cat.perc)+1]=cat.len.de*100/cat.len
+  cat.size[length(cat.size)+1]=cat.len
+  }
+png(file=f,width=700,height=900,res=72)
+library(graphics)
+op <- par(mar = c(30,7,5,2) + 0.1) ### default is c(5,4,4,2) + 0.1
+bp <- barplot(as.vector(cat.perc),names.arg=GO.wall.sig$category,ylim = c(0, 110),col="black",las=3,density = cat.size,space=0.9,main="Dought Biological Processes Up")
+grid(nx=NULL, ny=NULL,col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
+x=as.vector(cat.perc)
+text(bp,x+0.5,as.character(cat.size),cex=0.7,pos=3)
+dev.off()
+```
+
+
+6.5.4  Ignoring length bias
+```{r}
+GO.nobias=goseq(pwf,gene2cat=go.ids,method="Hypergeometric")
+head(GO.nobias)
+plot(log10(GO.wall[,2]), log10(GO.nobias[match(GO.nobias[,1],GO.wall[,1]),2]), xlab="log10(Wallenius p-values)", ylab="log10(Hypergeometric p-values)", xlim=c(-3,0), ylim=c(-3,0))
+abline(0,1,col=3,lty=2)
+
+plot(log10(GO.nobias[match(GO.nobias[,1],GO.wall[,1]),2]), log10(GO.samp[match(GO.samp[,1],GO.wall[,1]),2]), xlab="log10(Hypergeometric p-values)", ylab="log10(Sampling p-values)", xlim=c(-3,0))
+abline(0,1,col=3,lty=2)
+```
+
+
+Make a GOterm -> GeneID, Description mapping dataframe
+
+``` {r}
+### convert data frame to keep only relavant columns
+d.GO.term=data.frame(GO=d.2.GO$GO,ID=d.2.GO$V2,descr=d.2.GO$descr,p.adj=d.2.GO$p.adj)
+head(d.GO.term)
+cat.genes=c()
+for (cat in unique(GO.wall.sig$category))
+  {
+  cat.genes[[cat]] = subset(d.GO.term, GO==cat)
+  }
+head(cat.genes$"response to water deprivation"$descr)
+#response to water deprivation
+head(subset(d.GO.term,GO=="response to water deprivation"))
+```
+
+KEGG pathway analysis
+-------------------------
+
+Load KEGG pathway terms
+```{r}
+# kegg.rev=read.table(pipe("cut -f 6,15 ~/Dropbox/HeatDroughtRNASeq/Database/genesetsKEGG.txt"),sep='\t',header=TRUE)
+# 
+# ### create a new list for the GIs containing corresponding Kegg keywords
+# 
+# kegg.ids=c()
+# kegg.terms=c()
+# for (i in 1:nrow(kegg.rev))
+#   {
+#   for (j in strsplit(as.character(kegg.rev[i,2]),',')[[1]])
+#     {
+#     #print (as.character(kegg.rev[i,1]))
+#     kegg.ids[length(kegg.ids)+1] <- c(j)
+#     kegg.terms[length(kegg.terms)+1] <- c(as.character(kegg.rev[i,1]))
+#     
+#     }
+#   }
+# length(kegg.ids)
+# head(kegg.ids)
+# kegg.ids.1=data.frame(kegg.terms=kegg.terms, kegg.ids=kegg.ids)
+# head(kegg.ids.1)
+```
+
+Make a join dataframe containing GeneID, KEGGs and DE
+``` {r}
+# head(gene.vector)
+# gene.dataframe = data.frame(gene.vector)
+# head(gene.dataframe)
+# d.KEGG=merge(kegg.ids.1,d.2,by.x='kegg.ids',by.y='AGI')
+# head(d.KEGG)
+```
+
+
+
+Run Kegg steps
+
+```{r}
+# library(goseq)
+# pwf<-nullp(gene.vector,bias.data=length.vector)
+# KEGG=goseq(pwf,gene2cat=kegg.ids.1)
+# KEGG.p.adj=data.frame(KEGG,p.adj=p.adjust(KEGG$over_represented_pvalue,method='BH'))
+# KEGG.sig=KEGG.p.adj[which(KEGG.p.adj$p.adj<0.05),]
+# head(KEGG.sig)
+```
+
+
+Make the %DE vs Categories barplot
+
+``` {r}
+# ### get %DE values for each Category
+# cat.perc=c()
+# cat.size=c() ### size of each category where it is upregulated
+# for (cat in KEGG.sig$category)
+#   {
+#   cat.len = length(which(d.KEGG$kegg.terms==cat))
+#   cat.len.de = length(which((d.KEGG$kegg.terms==cat)&(d.KEGG$p.de==1)))
+#   cat.perc[length(cat.perc)+1]=cat.len.de*100/cat.len
+#   cat.size[length(cat.perc)+1]=cat.len
+#   }
+# #barplot(as.vector(cat.perc),names.arg=GO.cat.de$category,las=3)
+# #png(file=paste(dir,image,sep='/'),width=600,height=800,res=72)
+# library(graphics)
+# op <- par(mar = c(20,7,5,2) + 0.1) ### default is c(5,4,4,2) + 0.1
+# #barplot(as.vector(cat.perc),names.arg=GO.cat.de$category,ylim = c(0, 100),col=rainbow(21),las=3,density = cat.size)
+# bp <- barplot(as.vector(cat.perc),names.arg=KEGG.sig$category,ylim = c(0, 110),col="black",las=3,density = cat.size)
+# #bp <- barplot(as.vector(cat.perc),xlab=KEGG.sig$category,ylim = c(0, 110),col="black",density = cat.size,horiz=TRUE)
+# x=as.vector(cat.perc)
+# grid(nx=NULL, ny=NULL,col = "lightgray", lty = "dotted", lwd = par("lwd"), equilogs = TRUE)
+# text(bp,x+0.5,as.character(cat.size),cex=1,pos=3)
+# #text(1:length(GO.cat.de$category),-4,GO.cat.de$category,srt=90)
+# dev.off()
+```
+
+
+Session Information
+===================
+
+```{r}
+sessionInfo()
+````
+

@@ -1,0 +1,39 @@
+Make GO category plots
+========================================================
+
+
+change to the folder
+```{r}
+setwd('~/Desktop/temp/')
+dir()
+```
+
+You can also embed plots, for example:
+
+```{r fig.width=7, fig.height=6}
+d <- read.table('20130710_IPRout_table.txt', header=T,sep='\t')
+head(d)
+names(d)
+```
+
+
+Plot the individual categories
+```{r}
+d_sub <- d[which(d[,5]=="Molecular Function"),]
+op <- par(mar = c(15,7,5,2) + 0.2)  ## default is c(5,4,4,2) + 0.1
+d_sort <- (sort(table(d_sub$Description),decreasing = TRUE))[1:15]
+barplot(d_sort,las=2, col=gray.colors(20),space=0.6,cex.lab=12,cex.axis=0.65,cex.sub=12.0, cex=0.75, font = 3)
+
+d_sub <- d[which(d[,5]=="Biological Process"),]
+
+op <- par(mar = c(15,7,5,2) + 0.2)  ## default is c(5,4,4,2) + 0.1
+d_sort <- (sort(table(d_sub$Description),decreasing = TRUE))[1:15]
+barplot(d_sort,las=2, col=gray.colors(20),space=0.6,cex.lab=12,cex.axis=0.65,cex.sub=12.0, cex=0.75, font = 3)
+
+d_sub <- d[which(d[,5]=="Cellular Component"),]
+
+op <- par(mar = c(15,7,5,2) + 0.2)  ## default is c(5,4,4,2) + 0.1
+d_sort <- (sort(table(d_sub$Description),decreasing = TRUE))[1:15]
+barplot(d_sort,las=2, col=gray.colors(20),space=0.6,cex.lab=12,cex.axis=0.65,cex.sub=12.0, cex=0.75, font = 3)
+
+```
