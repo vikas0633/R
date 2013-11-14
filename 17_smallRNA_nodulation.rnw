@@ -1,0 +1,143 @@
+%% LyX 2.0.6 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass{article}
+\usepackage[sc]{mathpazo}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+\setcounter{secnumdepth}{1}
+\setcounter{tocdepth}{1}
+\usepackage{url}
+\usepackage[unicode=true,pdfusetitle,
+ bookmarks=true,bookmarksnumbered=true,bookmarksopen=true,bookmarksopenlevel=2,
+ breaklinks=false,pdfborder={0 0 1},backref=false,colorlinks=false]
+ {hyperref}
+\hypersetup{
+ pdfstartview={XYZ null null 1}}
+\usepackage{breakurl}
+\usepackage{listings}
+\lstloadlanguages{Python}
+\usepackage{pgfplotstable}
+\usepackage{csvsimple}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{subfig}
+ 
+\begin{document}
+\definecolor{keywords}{RGB}{255,0,90}
+\definecolor{comments}{RGB}{0,0,113}
+\definecolor{red}{RGB}{160,0,0}
+\definecolor{green}{RGB}{0,150,0}
+
+\lstset{language=Python, 
+        basicstyle=\ttfamily\small, 
+        keywordstyle=\color{keywords},
+        commentstyle=\color{comments},
+        stringstyle=\color{red},
+        showstringspaces=false,
+        identifierstyle=\color{green},
+        procnamekeys={def,class}}
+        
+\renewcommand\thesection{\arabic{section}}
+
+%%% for TOC with numbering
+
+
+\begin
+
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+# set global chunk options
+opts_chunk$set(fig.path='figure/minimal-', fig.align='center', fig.show='hold')
+options(replace.assign=TRUE,width=90)
+@
+
+
+\title{small RNA analysis - Nodulation dataset}
+
+
+\author{Vikas Gupta, Dennis Berg Holt, Niraj Shah, Stig U. Andersen and Katharina Markmann}
+
+\maketitle
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{4}
+\tableofcontents
+\newpage
+
+
+
+\newline 
+
+% add dot after number
+\makeatletter
+\g@addto@macro\thesection.
+\makeatother
+
+\section{Introduction}
+
+\textit {Lotus japonicus} is considered as one of the model plant to study symbiotic intraction with rhizobium bacteria. In this study, we aim to reveal the molecular mechanism governing the successful symbiotic relation. Our main focus is understand the role of nodulation genes such as \textbf {Snf1, Sst1, Sen1} in the nodule and root tissue type. We have analysed the data using an open source tool \href{http://www.ncbi.nlm.nih.gov/pubmed/22914220}{\textbf{ShortRan}}.
+
+\newline 
+
+\section{Aim}
+
+Dennis has created a set of hypothesis that would be potentially interesting to confirm in lights of publication stradegy (Table 2). 
+
+\begin{table}[!htbp] 
+\centering
+\csvautotabular{/Users/vgupta/Desktop/06_smallRNA/Ques_nod.txt}
+\caption{\label{QuesNod}Hypothesis to be tested}
+\end{table}
+
+\pagebreak
+\section{Dataset}
+
+\subsection {Genotypes}
+A total of 8 genotypes were sequenced, each with two additional replicate (Table 1).Genxpro technology was used to do the sequencing of small RNA samples. 
+
+\begin{table}[!htbp] 
+\centering
+\csvautotabular{/Users/vgupta/Desktop/06_smallRNA/NoddataSet.txt}
+\caption{\label{NodDataSet}Genotype sample sequenced in the study}
+\end{table}
+
+\pagebreak
+
+\subsection {FastQC}
+
+We ran FastQC on the raw fastq files to check for adaptor and there were no signatures were found. We also looked at the sequencing quality on 3' end of the read and quality seems to be quite high hence reads were trimmed. A summary from the library KM-63 is shown below.
+
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.5]{/Users/vgupta/Desktop/06_smallRNA/ReadCounts}
+\caption{\label{KM63reads}KM-63 Raw read abundance} 
+\end{figure}
+
+\begin{figure}
+\centering
+\parbox{6cm}{
+\includegraphics[width=6cm]{/Users/vgupta/Desktop/06_smallRNA/SequencingQuality}
+\caption{KM 63 Sequencing Quality}
+\label{fig:2figsA}}
+\qquad
+\begin{minipage}{6cm}
+\includegraphics[width=6cm]{/Users/vgupta/Desktop/06_smallRNA/SizeDistribution}
+\caption{KM 63 Size distribution}
+\label{fig:2figsB}
+\end{minipage}
+\end{figure}
+
+\pagebreak
+
+\subsection {Read Counts}
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.9]{/Users/vgupta/Desktop/06_smallRNA/plots/libraries_abundance_Adapter_filtered_total_abundances.png}
+\caption{\label{RawAbundance}Raw read abundance} 
+\end{figure}
+
+
+
+
+\end{document}

@@ -1,0 +1,151 @@
+%% LyX 2.0.6 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass{article}
+\usepackage[sc]{mathpazo}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+\setcounter{secnumdepth}{1}
+\setcounter{tocdepth}{1}
+\usepackage{url}
+\usepackage[unicode=true,pdfusetitle,
+ bookmarks=true,bookmarksnumbered=true,bookmarksopen=true,bookmarksopenlevel=2,
+ breaklinks=false,pdfborder={0 0 1},backref=false,colorlinks=false]
+ {hyperref}
+\hypersetup{
+ pdfstartview={XYZ null null 1}}
+\usepackage{breakurl}
+\usepackage{listings}
+\lstloadlanguages{Python}
+\usepackage{pgfplotstable}
+\usepackage{csvsimple}
+\begin{document}
+\definecolor{keywords}{RGB}{255,0,90}
+\definecolor{comments}{RGB}{0,0,113}
+\definecolor{red}{RGB}{160,0,0}
+\definecolor{green}{RGB}{0,150,0}
+ 
+\lstset{language=Python, 
+        basicstyle=\ttfamily\small, 
+        keywordstyle=\color{keywords},
+        commentstyle=\color{comments},
+        stringstyle=\color{red},
+        showstringspaces=false,
+        identifierstyle=\color{green},
+        procnamekeys={def,class}}
+        
+\renewcommand\thesection{\arabic{section}}
+
+%%% for TOC with numbering
+
+
+\begin
+
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+# set global chunk options
+opts_chunk$set(fig.path='figure/minimal-', fig.align='center', fig.show='hold')
+options(replace.assign=TRUE,width=90)
+@
+
+
+\title{Array Expression Data Analysis report}
+
+
+\author{Vikas Gupta, Niraj Shah and Stig U. Andersen}
+
+\maketitle
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{4}
+\tableofcontents
+\newpage
+
+
+<<SNP destribution Sliding Window>>=
+
+d <- read.table('~/Desktop/temp/1kb.ld', header = T)
+head(d)
+plot(d$L1, d$L2)
+
+@
+
+\newline 
+
+% add dot after number
+\makeatletter
+\g@addto@macro\thesection.
+\makeatother
+
+\section{Introduction}
+
+
+\section{WorkFlow}
+
+<< Installation , cache=TRUE>>=
+
+source("http://www.bioconductor.org/biocLite.R")
+biocLite("ALL")
+
+@
+
+<< Load data , cache=TRUE >>=
+library('ALL')
+data('ALL')
+@
+
+
+<< Process data , cache=TRUE >>=
+ALL
+ALL$mol.biol
+eset <- ALL[, ALL$mol.biol %in% c("BCR/ABL", "ALL1/AF4")]
+heatmap(exprs(eset[1:100,]))
+
+@
+
+<< testing >>=
+mat <- matrix(c(1,2,NA,2,1,4),nrow=3,ncol=2)
+heatmap(mat, col=topo.colors(100), Colv = NULL, na.rm=T)
+
+@
+
+<< Load the data >>=
+jpeg("~/Desktop/03_Lotus_annotation/2013_week44/04_genelist.txt.arrayData.jpg", width=2600, 
+     height=1800, quality=90, units="px")
+d <- read.table('~/Desktop/03_Lotus_annotation/2013_week44/04_genelist.txt.arrayData', header=T)
+#d_all <- read.table('~/Desktop/03_Lotus_annotation/2013_week44/export_2013-11-04-02-43-41_5411.txt.means', header=T)
+#head(d)
+#names(d)
+#plot(d$Mean_WT_control1, d$Std_WT_control1)
+#plot(d_all$Mean_WT_control1, d_all$Std_WT_control1, col='red')
+#length(which(d_all$Std_WT_control1/d_all$Mean_WT_control1 >0.2))
+par(mfcol=c(1,1), mar=c(2.5,2.5,2.5,2.5), oma=c(25,1,1,80))
+d2 <- as.matrix(d[,])
+# seed - lightblue
+# pod - blue
+# flower - yellow
+# shoot - green
+# petiole - pink
+# leaf - violet
+# stem - white
+# root - gray
+# nodules - red
+# nodules+root - orange
+
+colors <- c(rep("lightblue",length = 5), 
+            rep("blue",length = 1), 
+            rep("yellow",length = 2), 
+            rep("green",length = 30), 
+            rep("pink",length = 1), 
+            rep("violet",length = 2), 
+            rep("white",length = 2), 
+            rep("gray",length = 28), 
+            rep("red",length = 5), 
+            rep("orange",length = 2))
+heatmap(d2, labRow = rownames(d), labCol = c(colnames(d)), col=topo.colors(100), keep.dendro = FALSE, Colv = NA , cex.axis=0.1,  pch=10, cex.lab=1.1,cexRow=2.5, cexCol=1.5, ColSideColors=colors)
+dev.off()
+@
+
+\section{Plotting}
+
+
+\end{document}
