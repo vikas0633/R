@@ -1,0 +1,334 @@
+%% LyX 2.0.6 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass{article}\usepackage{graphicx, color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\definecolor{fgcolor}{rgb}{0.2, 0.2, 0.2}
+\newcommand{\hlnumber}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlfunctioncall}[1]{\textcolor[rgb]{0.501960784313725,0,0.329411764705882}{\textbf{#1}}}%
+\newcommand{\hlstring}[1]{\textcolor[rgb]{0.6,0.6,1}{#1}}%
+\newcommand{\hlkeyword}[1]{\textcolor[rgb]{0,0,0}{\textbf{#1}}}%
+\newcommand{\hlargument}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hlcomment}[1]{\textcolor[rgb]{0.180392156862745,0.6,0.341176470588235}{#1}}%
+\newcommand{\hlroxygencomment}[1]{\textcolor[rgb]{0.43921568627451,0.47843137254902,0.701960784313725}{#1}}%
+\newcommand{\hlformalargs}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hleqformalargs}[1]{\textcolor[rgb]{0.690196078431373,0.250980392156863,0.0196078431372549}{#1}}%
+\newcommand{\hlassignement}[1]{\textcolor[rgb]{0,0,0}{\textbf{#1}}}%
+\newcommand{\hlpackage}[1]{\textcolor[rgb]{0.588235294117647,0.709803921568627,0.145098039215686}{#1}}%
+\newcommand{\hlslot}[1]{\textit{#1}}%
+\newcommand{\hlsymbol}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlprompt}[1]{\textcolor[rgb]{0.2,0.2,0.2}{#1}}%
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+\usepackage[sc]{mathpazo}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+\usepackage{url}
+\usepackage[unicode=true,pdfusetitle,
+ bookmarks=true,bookmarksnumbered=true,bookmarksopen=true,bookmarksopenlevel=2,
+ breaklinks=false,pdfborder={0 0 1},backref=false,colorlinks=false]
+ {hyperref}
+\hypersetup{
+ pdfstartview={XYZ null null 1}}
+\usepackage{breakurl}
+\usepackage{listings}
+\lstloadlanguages{Python}
+\usepackage{pgfplotstable}
+\usepackage{csvsimple}
+\begin{document}
+\definecolor{keywords}{RGB}{255,0,90}
+\definecolor{comments}{RGB}{0,0,113}
+\definecolor{red}{RGB}{160,0,0}
+\definecolor{green}{RGB}{0,150,0}
+ 
+ 
+\lstset{framextopmargin=50pt}
+\lstset{language=Python, 
+        basicstyle=\ttfamily\small, 
+        keywordstyle=\color{keywords},
+        commentstyle=\color{comments},
+        stringstyle=\color{red},
+        showstringspaces=false,
+        identifierstyle=\color{green},
+        procnamekeys={def,class},
+        breaklines=true}
+        
+\renewcommand\thesection{\arabic{section}}
+
+%%% for TOC with numbering
+
+
+\begin
+
+
+
+
+
+\title{Positive selection study using Prank and CodeML}
+
+
+\author{Vikas Gupta and Stig U. Andersen}
+
+\maketitle
+\setcounter{secnumdepth}{5}
+\setcounter{tocdepth}{5}
+\tableofcontents
+\newpage
+
+
+\newline 
+
+% add dot after number
+\makeatletter
+\g@addto@macro\thesection.
+\makeatother
+
+\section{Introduction}
+
+This document is a quick description for the positive selection test pipeline. Method is very similar to suggested by Victor Albert and we have used the codeML control and test parameters supplemented by his lab. I will attach maximum information but if anything missing you can always fetch script from the my GitHub \url {https://github.com/vikas0633/python}.
+
+
+\section{Input data}
+We have downloaded three cds fasta files for \href{ftp://ftp.arabidopsis.org/home/tair/Sequences/blast_datasets/TAIR10_blastsets/TAIR10_cds_20101214_updated}{Arabidopsis}, \href{ftp://ftp.plantgdb.org/download/Genomes/GmGDB/Gmax_109_cds.fa.gz}{Glycine max} and \href{ftp://ftp.jcvi.org/pub/data/m_truncatula/Mt4.0/Annotation/Mt4.0v1/Mt4.0v1_GenesCDSSeq_20130731_1800.fasta}{Medicago}. 
+\newline
+\newline
+Lotus CDS fasta file is at:
+\newline
+\~/vgupta/lotus\_3.0/20130802\_Lj30\_CDS.fa
+\newline
+\newline
+Ortholog groups were extrated from results provided by Vic are at:
+\newline
+\~/vgupta/01\_genome\_annotation/32\_prank/01\_PositiveSelectionCandidate/20131213\_orthoGroups.lotus.txt 
+\newline
+\newline
+\begin{lstlisting}
+### Arabidosis
+wget ftp://ftp.arabidopsis.org/home/tair/Sequences/blast_datasets/TAIR10_blastsets/TAIR10_cds_20101214_updated
+### Glycin max
+wget ftp://ftp.plantgdb.org/download/Genomes/GmGDB/Gmax_109_cds.fa.gz
+### Medicago 
+wget ftp://ftp.jcvi.org/pub/data/m_truncatula/Mt4.0/Annotation/Mt4.0v1/Mt4.0v1_GenesCDSSeq_20130731_1800.fasta
+
+\end{lstlisting}
+
+\section{Installation}
+
+\subsection{Prank}
+http://code.google.com/p/prank-msa/wiki/PRANK
+
+\subsection{Gblocks}
+http://bioweb2.pasteur.fr/docs/gblocks/#Installation
+
+\subsection{Codeml}
+http://abacus.gene.ucl.ac.uk/software/pamlX-1.1-x11-x86_64.tgz
+
+\subsection{pchisq}
+http://stat.ethz.ch/R-manual/R-patched/library/stats/html/Chisquare.html
+
+\subsection{seqret}
+http://emboss.open-bio.org/rel/dev/apps/seqret.html
+
+\section{Data Analsis}
+
+\subsection{Spliting fasta}
+First step is to create individual fasta file where each contains homologous sequences for four species and it done using custom python script.
+
+\newline
+\begin{lstlisting}
+### grep orthogroup sequences
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/01_fasta
+python ~/script/python/21bf_ortho2fasta.py -i ../20130103_orthoGroups.lotus.txt -f /array/users/vgupta/01_genome_annotation/32_prank/01_PositiveSelectionCandidate/01_fasta/02_cds/Lj_Gm_Mt_At.cds.fa
+\end{lstlisting}
+
+\subsection{Creating alignments}
+While running the Prank remember to used -codon option for codon based alignments.
+
+\newline
+\begin{lstlisting}
+### run prank
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/01_fasta
+for file in Lj*.fa
+do
+prank -d=$file -o=$file -showall -codon -F
+done
+\end{lstlisting}
+
+\subsection{Filtering alignments}
+Again remember to use -t=c for the codon based filtering. An example output from the Gblocks is shown in the figure 1, blue region is cosidered as good alignment region.
+
+\newline
+\begin{lstlisting}
+### run Gblocks
+for file in *.best.fas
+do 
+Gblocks $file -t=c -d=y
+done
+\end{lstlisting}
+
+\newpage
+
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.50]{/Users/vgupta/Desktop/03_Lotus_annotation/2014_week1/gblocks.png}
+\caption{\label{Gblocks}GblocksExample} 
+\end{figure}
+
+\newpage
+
+\subsection{Data munging}
+Gblocks outputs genbank format files and CodeML requires Phylip format file so a bit data format transformation is done using below code. Also I have added #1 to all Lotus branches using sed regular expession.
+
+
+\begin{lstlisting}
+## gb to fas
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/04_gb
+for file in *-gb
+do
+seqret -sequence $file -outseq $file.fas
+done
+
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/04_gb
+## fas to phy
+for file in *.fas
+do
+perl ~/script/perl/MFAtoPHY.pl $file
+done
+
+### add the # in the end file
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/03_dnd
+for file in *.best.dnd
+do
+sed -e 's/\(Lj[a-zA-Z0-9]*\.[a-zA-Z0-9]\:[a-zA-Z0-9]*\.[a-zA-Z0-9]*\)/\1 #1/' $file > $file.1
+done
+
+\end{lstlisting}
+
+\subsection {Running CodeML}
+CodeML runs only one alignement at a time and each time it requires a parameter file with individual file path. Follwing code loops over files one after another, replacing file paths in the parameter files and running CodeML. 
+
+
+\begin{lstlisting}
+
+### Control
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/06_model_bs_ctrl
+for file in /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/05_phy/*.phy
+do
+echo $file
+id=`echo $file | awk -F"/" '{print $NF}' | awk -F"." '{print $1}'`
+seqfile=$file
+treefile="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/03_dnd/"$id".fa.best.dnd.1"
+outfile=$id".out"
+awk -v var="$seqfile" ' {split ($0, arr, "="); if ($0~/seqfile/) print arr[1]"=" var; else print $0};' 06_PS_control.txt | awk -v var="$treefile" ' {split ($0, arr, "="); if ($0~/treefile/) print arr[1]"=" var; else print $0};'| awk -v var="$outfile" ' {split ($0, arr, "="); if ($0~/outfile/) print arr[1]"=" var; else print $0};' > temp.txt
+codeml temp.txt
+done
+
+### Test
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/07_model_ps_test
+for file in /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/05_phy/*.phy
+do
+echo $file
+id=`echo $file | awk -F"/" '{print $NF}' | awk -F"." '{print $1}'`
+seqfile=$file
+treefile="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/03_dnd/"$id".fa.best.dnd.1"
+outfile=$id".out"
+awk -v var="$seqfile" ' {split ($0, arr, "="); if ($0~/seqfile/) print arr[1]"=" var; else print $0};' 07_model_ps_test.txt | awk -v var="$treefile" ' {split ($0, arr, "="); if ($0~/treefile/) print arr[1]"=" var; else print $0};'| awk -v var="$outfile" ' {split ($0, arr, "="); if ($0~/outfile/) print arr[1]"=" var; else print $0};' > temp.txt
+codeml temp.txt
+done
+\end{lstlisting}
+
+\subsection{Parsing CodeML output}
+
+To do a loglikelihood test, we needed the likelihood values from the control and test CodeML output files and use a chi-square test with one degree of freedom to test the significance.
+
+\begin{lstlisting}
+### fetch the likelihood values
+for file in /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/06_model_bs_ctrl/*.out;
+do
+id=`echo $file | awk -F"/" '{print $NF}' | awk -F"." '{print $1}'`
+file="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/06_model_bs_ctrl"/"$id".out
+Ctrl_lnL=`grep lnL $file | awk '{split($0, a, " "); print a[5]}'`
+file="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/07_model_ps_test"/"$id".out
+test_lnL=`grep lnL $file | awk '{split($0, a, " "); print a[5]}'`
+echo -n $id,$Ctrl_lnL,$test_lnL;
+echo ;
+done
+\end{lstlisting}
+
+\subsection{Chi-square test}
+Chi-square test was done using a R fucntion called pchiseq.
+
+\url{http://www.ndsu.edu/pubweb/~mcclean/plsc431/mendel/mendel4.htm}
+
+\begin{lstlisting}
+
+d <- read.table('/Volumes/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/08_PS_compare/20140106_lnL.txt', sep = ',')
+diff_df = 1
+colnames(d) <- c("LjID", "Control_lnL","Test_lnL")
+
+d$diff.2 <- 2*abs(d$Test_lnL - d$Control_lnL)
+d$p_value <- 1 - pchisq( d$diff.2 , df =  diff_df)
+
+write.table(d, file='/Volumes/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/08_PS_compare/20140106_lnL.p_value', sep="\t", row.names =F, quote = F)
+
+\end{lstlisting}
+
+\section{Comparing with Vic's list}
+
+P-values from the Prank and Muscle alignment based resutls has been loaded into a MySQL database. There were a total 281 candidate significant in both list. 
+
+\begin{lstlisting}
+### Make MySQL table
+CREATE TABLE `20140106_PS_comp`  (Lj30_ID VARCHAR(100), Prank FLOAT, Vic FLOAT);
+LOAD DATA LOCAL INFILE '/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/08_PS_compare/20140106_lnL.comp.txt' INTO TABLE  `20140106_PS_comp`;
+CREATE INDEX `20140106_PS_comp.index` ON `20140106_PS_comp` (Lj30_ID);
+
+
+mysql> select count(*) from 20140106_PS_comp WHERE Prank<0.01  AND Vic<0.01 ; 
++----------+
+| count(*) |
++----------+
+|      281 |
++----------+
+1 row in set (0.01 sec)
+
+\end{lstlisting}
+
+\end{document}

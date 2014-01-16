@@ -1,0 +1,17 @@
+\contentsline {section}{\numberline {1.}Introduction}{2}{section.1}
+\contentsline {section}{\numberline {2.}Input data}{2}{section.2}
+\contentsline {section}{\numberline {3.}Installation}{2}{section.3}
+\contentsline {subsection}{\numberline {3..1}Prank}{2}{subsection.3.1}
+\contentsline {subsection}{\numberline {3..2}Gblocks}{2}{subsection.3.2}
+\contentsline {subsection}{\numberline {3..3}Codeml}{2}{subsection.3.3}
+\contentsline {subsection}{\numberline {3..4}pchisq}{2}{subsection.3.4}
+\contentsline {subsection}{\numberline {3..5}seqret}{2}{subsection.3.5}
+\contentsline {section}{\numberline {4.}Data Analsis}{3}{section.4}
+\contentsline {subsection}{\numberline {4..1}Spliting fasta}{3}{subsection.4.1}
+\contentsline {subsection}{\numberline {4..2}Creating alignments}{3}{subsection.4.2}
+\contentsline {subsection}{\numberline {4..3}Filtering alignments}{3}{subsection.4.3}
+\contentsline {subsection}{\numberline {4..4}Data munging}{5}{subsection.4.4}
+\contentsline {subsection}{\numberline {4..5}Running CodeML}{5}{subsection.4.5}
+\contentsline {subsection}{\numberline {4..6}Parsing CodeML output}{6}{subsection.4.6}
+\contentsline {subsection}{\numberline {4..7}Chi-square test}{6}{subsection.4.7}
+\contentsline {section}{\numberline {5.}Comparing with Vic's list}{6}{section.5}
