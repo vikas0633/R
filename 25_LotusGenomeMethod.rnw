@@ -187,6 +187,13 @@ echo "cufflinks is done" >>$logfile
 
 \subsubsection{De novo assembled transcripts}
 
+\subsubsection{Ab-initio predictions}
+
+\subsubsubsection{Augustus}
+
+\subsubsubsection{Glimmer}
+
+\subsubsubsection{GeneMark}
 
 \subsection{Gene model selection and filtering}
 
@@ -198,6 +205,6 @@ echo "cufflinks is done" >>$logfile
 
 \subsection{Analysis of phylogenetic relationships and LD}
 
-\subsection{SNP effect nalysis}
+\subsection{SNP effect analysis}
 
 \end{document}
