@@ -1,11 +1,43 @@
-\contentsline {section}{\numberline {1.}Introduction}{2}{section.1}
-\contentsline {section}{\numberline {2.}Gene Annotation}{2}{section.2}
-\contentsline {subsection}{\numberline {2..1}Repeat Masking}{2}{subsection.2.1}
-\contentsline {subsection}{\numberline {2..2}Gene model Generation}{2}{subsection.2.2}
-\contentsline {subsubsection}{\numberline {2..2.1}RNA-seq}{2}{subsubsection.2.2.1}
-\contentsline {subsubsection}{\numberline {2..2.2}De novo assembled transcripts}{4}{subsubsection.2.2.2}
-\contentsline {subsection}{\numberline {2..3}Gene model selection and filtering}{4}{subsection.2.3}
-\contentsline {section}{\numberline {3.}Lotus accession resequencing}{4}{section.3}
-\contentsline {subsection}{\numberline {3..1}Variant calling and filtering}{4}{subsection.3.1}
-\contentsline {subsection}{\numberline {3..2}Analysis of phylogenetic relationships and LD}{4}{subsection.3.2}
-\contentsline {subsection}{\numberline {3..3}SNP effect nalysis}{4}{subsection.3.3}
+\contentsline {section}{\numberline {1.}Introduction}{3}{section.1}
+\contentsline {section}{\numberline {2.}Gene Annotation}{3}{section.2}
+\contentsline {subsection}{\numberline {2..1}Repeat Masking}{3}{subsection.2.1}
+\contentsline {subsection}{\numberline {2..2}Gene model Generation}{3}{subsection.2.2}
+\contentsline {subsubsection}{\numberline {2..2.1}RNA-seq}{3}{subsubsection.2.2.1}
+\contentsline {subsubsection}{\numberline {2..2.2}De novo assembled transcripts}{5}{subsubsection.2.2.2}
+\contentsline {subsubsection}{\numberline {2..2.3}Lotus Gene indices}{5}{subsubsection.2.2.3}
+\contentsline {subsubsection}{\numberline {2..2.4}Ab-initio predictions}{5}{subsubsection.2.2.4}
+\contentsline {paragraph}{\numberline {2..2.4.1}Augustus}{5}{paragraph.2.2.4.1}
+\contentsline {paragraph}{\numberline {2..2.4.2}Glimmer}{6}{paragraph.2.2.4.2}
+\contentsline {paragraph}{\numberline {2..2.4.3}GeneMark}{6}{paragraph.2.2.4.3}
+\contentsline {subsection}{\numberline {2..3}Gene model selection and filtering}{7}{subsection.2.3}
+\contentsline {subsection}{\numberline {2..4}Coding potential prediction}{8}{subsection.2.4}
+\contentsline {subsubsection}{\numberline {2..4.1}Functional annotation}{9}{subsubsection.2.4.1}
+\contentsline {section}{\numberline {3.}Lotus accession resequencing}{10}{section.3}
+\contentsline {subsection}{\numberline {3..1}Variant calling and filtering}{10}{subsection.3.1}
+\contentsline {subsubsection}{\numberline {3..1.1}Fastq Mapping}{11}{subsubsection.3.1.1}
+\contentsline {subsubsection}{\numberline {3..1.2}Duplicate Marking}{11}{subsubsection.3.1.2}
+\contentsline {subsubsection}{\numberline {3..1.3}Realiging the reads}{12}{subsubsection.3.1.3}
+\contentsline {subsubsection}{\numberline {3..1.4}Unified genotyper}{12}{subsubsection.3.1.4}
+\contentsline {subsubsection}{\numberline {3..1.5}Base Recalibrator}{12}{subsubsection.3.1.5}
+\contentsline {section}{\numberline {4.}Analysis of phylogenetic relationships and LD}{12}{section.4}
+\contentsline {subsection}{\numberline {4..1}Phylogenetics}{12}{subsection.4.1}
+\contentsline {subsection}{\numberline {4..2}LD}{13}{subsection.4.2}
+\contentsline {section}{\numberline {5.}snpEffect}{13}{section.5}
+\contentsline {section}{\numberline {6.}Prank based alignments}{14}{section.6}
+\contentsline {subsection}{\numberline {6..1}Input data}{14}{subsection.6.1}
+\contentsline {subsection}{\numberline {6..2}Installation}{15}{subsection.6.2}
+\contentsline {subsubsection}{\numberline {6..2.1}Prank}{15}{subsubsection.6.2.1}
+\contentsline {subsubsection}{\numberline {6..2.2}Gblocks}{15}{subsubsection.6.2.2}
+\contentsline {subsubsection}{\numberline {6..2.3}Codeml}{15}{subsubsection.6.2.3}
+\contentsline {subsubsection}{\numberline {6..2.4}pchisq}{15}{subsubsection.6.2.4}
+\contentsline {subsubsection}{\numberline {6..2.5}seqret}{15}{subsubsection.6.2.5}
+\contentsline {subsection}{\numberline {6..3}Data Analsis}{15}{subsection.6.3}
+\contentsline {subsubsection}{\numberline {6..3.1}Spliting fasta}{15}{subsubsection.6.3.1}
+\contentsline {subsubsection}{\numberline {6..3.2}Creating alignments}{15}{subsubsection.6.3.2}
+\contentsline {subsubsection}{\numberline {6..3.3}Filtering alignments}{15}{subsubsection.6.3.3}
+\contentsline {subsubsection}{\numberline {6..3.4}Data munging}{18}{subsubsection.6.3.4}
+\contentsline {subsubsection}{\numberline {6..3.5}Running CodeML}{18}{subsubsection.6.3.5}
+\contentsline {subsubsection}{\numberline {6..3.6}Parsing CodeML output}{19}{subsubsection.6.3.6}
+\contentsline {subsubsection}{\numberline {6..3.7}Chi-square test}{19}{subsubsection.6.3.7}
+\contentsline {subsection}{\numberline {6..4}Comparing with Vic's list}{19}{subsection.6.4}
+\contentsline {section}{\numberline {7.}Python Script}{21}{section.7}

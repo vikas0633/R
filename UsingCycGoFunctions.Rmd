@@ -1,0 +1,90 @@
+Using the functions found in CycGoFunctions.R
+========================================================
+Start by reading in the functions.
+```{r}
+source("CycGoFunctions.R")
+```
+
+The getPathGenes() function,
+----------------
+Given a pathway id, this will return a data frame of genes and the corresponding proteins that belong to that pathway.  This information is based on the file:  locus2pathway.tsv.gz
+```{r}
+a<-getPathwayGenes("PWY-4101")
+#a<-getPathwayGenes(id="PWY-4101") #equivilent
+dim(a)
+a
+```
+
+Alternatively, you can use a pathway name,
+```{r}
+b<-getPathwayGenes(name="sorbitol degradation I")
+dim(b)
+b
+```
+If the first argument is not specified it is assumed to be a pathway id.
+
+Notice that a adn b are identical.  
+This function doesn't do anything fancy; but it should work (with some flexibility) and give consistent results.
+The data frame returned will have the gene, protein, pathway id, and pathway name.  In addition to those columns it will check to see if any of those genes/enzymes are associated with any other pathways, and if so, it will add one or more columns to show the pathway id for those other pathways.
+
+The getExprValsAll function
+-----------------------
+Gets all of the expression values for this dataset.
+```{r}
+c<-getExprValsAll()
+head(c)
+```
+
+The getExprVals function
+---------------------
+Given a vector of gene ids, retrieve expression values for those genes.
+```{r}
+expressionSet <- getExprVals(a$gene)
+head(expressionSet)
+```
+This function calls on the get ExprValsAll function.
+
+The showExprVals function
+----------------------
+Generates a plot showing expression values of each gene over the 5 time points.  The argument expressionSet can contain additional columns and the columns can be in any order.  But additional columns should not have names containing pad, cup, green, pink, ripe, because it will mistake those for sample names.
+```{r}
+showExprVals(expressionSet)
+```
+The function has options for giving an id or name to use in the title, and some control over if/where the legend it placed.
+The argument plx is passed to the legend argument x, so it can have the values "bottomright", "bottom", "bottomleft", "left", "topleft", "top", "topright", "right" and "center" or the added option "below", in which the legend will be plotted in a space below the plot, not on the plot, which is ideal for pathways with many genes whose legends would cover the plot.
+Error in plot.new() : figure margins too large
+--this is really unfortunate.  If the plot window is too small, it throws this errors.  To work around this, make the window bigger, or use the pdf argument.
+The pdf argument takes a string that will be used as the file name and the plot will be written to a file instead of printed in the window. This is handy for saving plots for presendations and for dealing with the 'margins too large' error.
+
+The PlotPathway function
+--------------------
+This function takes a pathway id or name and passes it through the functions getPathwayGenes, getExprVals and showExprVals to produce a plot representing the genes in the pathway. No intermediate data frame is returned.
+```{r}
+PlotPathway("PWY-4101")
+```
+PlotPathway can take additional arguments to pass to showExprValues(), such as plx or pdf
+
+The AveByStage function
+-------------------
+You may want to have the averages for each stage for each gene.  Keep in mind that showExprVals() takes a data frame with the values for every sample and it will plot the sample values AND plot the lines based on the averages automatically, so AveByStage is not necissary for that.  It might be useful however if you wanted to look at fewer numbers or use a function that did not automatically do the averages.  This function takes a data frame such as "expressionSet" and removes the 15 columns of sample values and replaces them with 5 columns of average stage values, and returns the data frame.  It works based on column name, not column possition.
+```{r}
+names(expressionSet)
+aveEset<-AveByStage(expressionSet)
+names(aveEset)
+```
+This function takes 2 arguments.  The first is a data frame.  The second is S, a character vector of names of stages; its default value is S=c("pad","cup","green","pink","ripe").  The function searches for these as parts of the column names to determine which columns to average together (all other columns are just copied to the new data frame).
+
+This might be useful if you wanted to make a heat map.
+
+Heat Maps
+---------
+currently a work in progress...
+I think the pheatmap function makes nice looking ones.  You can get this package from the CRAN repository.
+```{r}
+library("pheatmap", lib.loc="/Library/Frameworks/R.framework/Versions/3.0/Resources/library")
+pheatmap(aveEset[,3:7])
+```
+
+```{r}
+sessionInfo()
+```

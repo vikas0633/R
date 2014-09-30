@@ -56,8 +56,8 @@ options(replace.assign=TRUE,width=90)
 \author{Vikas Gupta and Stig U. Andersen}
 
 \maketitle
-\setcounter{secnumdepth}{5}
-\setcounter{tocdepth}{5}
+\setcounter{secnumdepth}{6}
+\setcounter{tocdepth}{6}
 \tableofcontents
 \newpage
 
@@ -187,24 +187,627 @@ echo "cufflinks is done" >>$logfile
 
 \subsubsection{De novo assembled transcripts}
 
+GMAP was used to map the assembled transcripts on the genome with maximum of 3000 base-pair as the intron length. 
+
+\begin{lstlisting}
+
+### MG20 
+nice -n 19 gmap -d 'Ljchr0-6_pseudomol_20120830.chlo.mito.fa' --intronlength=30000 --nthreads=3 --format=2 /u/vgupta/01_genome_annotation/11_gmap/data/MG20_mRNA_illumina_denovo.fa > /u/vgupta/01_genome_annotation/11_gmap/MG20_mRNA_illumina_denovo.gff
+
+\end{lstlisting}
+
+\subsubsection{Lotus Gene indices}
+
+Lotus gene indices were downloaded from \url {http://compbio.dfci.harvard.edu/tgi/cgi-bin/tgi/gimain.pl?gudb=l_japonicus} and were mapped back to genome using the similar approach to assembled transcripts.
+
+\begin{lstlisting}
+
+nice -n 19 gmap -d 'Ljchr0-6_pseudomol_20120830.chlo.mito.fa' --intronlength=30000 --nthreads=4 --format=2 LJGI.051810 > LJGI.051810.gff3
+
+\end{lstlisting}
+
+
 \subsubsection{Ab-initio predictions}
 
-\subsubsubsection{Augustus}
+We have used three ab-initio predictor to find the genes that might be less expressed and not predicted by the RNA-seq approach.
 
-\subsubsubsection{Glimmer}
+\paragraph{Augustus}\mbox{}\\
 
-\subsubsubsection{GeneMark}
+Augutus can be used as either with pre-trained parameters for a specie or it can be trained with the given a set of protein coding gene structures. As we did not have any pre-trained parameters for \textit {Lotus japonicus}, we have trained parameters using the gene structure from the RNA-seq based predictions. Augustus version 2.6.1 was used.  
+
+\begin{lstlisting}
+
+### Augustas with the training with cufflinks output
+
+### covert to gff3 format
+perl gtf2gff.pl < 05_transcripts.gtf --gff3 --printExon --out=05.gff
+
+### converting gff3 to gb format
+cd /u/vgupta/01_genome_annotation/14_augustus
+perl Vikas_gff2gbSmallDNA.pl 05.gff Ljchr0-6_pseudomol_20120830.scaf.fa 20000 05.gb
+
+
+### generating test set
+perl /u/vgupta/01_genome_annotation/tools/augustus.2.6.1/scripts/randomSplit.pl 05.gb 100
+
+### CREATE A META PARAMETERS FILE FOR YOUR SPECIES
+perl /u/vgupta/01_genome_annotation/tools/augustus.2.6.1/scripts/new_species.pl --species=Lotus_cuff
+### MAKE AN INITIAL TRAINING
+# edit /u/vgupta/01_genome_annotation/tools/augustus.2.6.1/config/species/
+stopCodonExcludedFromCDS true # make this 'true' if the CDS includes the stop codon (training and prediction)
+etraining --species=Lotus_cuff 05.gb.train
+
+### testing augustas
+augustus --species=Lotus_cuff 05.gb.test
+
+### optimise the parameters
+RUN THE SCRIPT optimize_augustus.pl
+perl /u/vgupta/01_genome_annotation/tools/augustus.2.6.1/scripts/optimize_augustus.pl --species=Lotus_cuff 05.gb.train
+
+### testing augustas
+augustus --species=Lotus_cuff 05.gb.test
+
+### run the prediction
+augustus --gff3=on --species=Lotus /u/vgupta/lotus_3.0/Ljchr0-6_pseudomol_20120830.chlo.mito.fa >augustus.gff3
+
+\end{lstlisting}
+
+
+\paragraph{Glimmer}\mbox{} \\
+
+Glimmer gene predictor has been used with the trained parameters for the \textit {Arabidopsis thailiana} plant. GlimmerHMM version 3.0.1 was used here to predict another set of gene models.
+
+\begin{lstlisting}
+### using trained data
+/u/vgupta/01_genome_annotation/tools/GlimmerHMM/trained_dir/arabidopsis
+
+glimmerhmm_linux /u/vgupta/lotus_3.0/Ljchr0-6_pseudomol_20120830.chlo.mito.fa /u/vgupta/01_genome_annotation/tools/GlimmerHMM/trained_dir/arabidopsis -g > 20121014_glimmerHMM_arabidopsis.gff3
+
+\end{lstlisting}
+
+\paragraph{GeneMark}\mbox{} \\
+
+GeneMark was the third ab-initio predictor we used for the gene models here. GeneMark does not require a pre-trained set of parameters or an user supplied gene structure for fine-tuning instead it usage a small fraction of genome(~10 MB) to train the prediction parameters. We used GeneMark-ES version 2.3e.
+
+\begin{lstlisting}
+
+# works only on genome cluster
+perl /home/vgupta/01_genome_annotation/tools/gm_es_bp_linux64_v2.3e/gmes/vikas_gm_es.pl /home/vgupta/01_genome_annotation/01_genome/Ljchr0-6_pseudomol_20120830.scaf.fa
+
+### zombie
+/u/vgupta/01_genome_annotation/tools/maker/src/bin/genemark_gtf2gff3 sample.genemark_hmm.gtf > sample.genemark_hmm.gff3
+
+\end{lstlisting}
 
 \subsection{Gene model selection and filtering}
 
+Six set of gene models, when put together contained a high degree of redundancy. Creating a consesus model is a non-trivial for multi-exonic genes as often the existing software mis-predict the individual exons and merging multiple exons may results into wrong set of exons for a given gene. We used RNA-seq data to find multiple wrongly annotated genes using consensus method used by EVM.
 
+We used a heirarchial selection approach based on the confidence in the gene model evidence quality. RNA-seq based gene models were considered with the best gene strcture so these were assigned highest preriority. 
+
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.60]{/Users/vgupta/Desktop/manuscipts/LotusGenome/v13/LotusGeneModelFiltering.png}
+\caption{\label{Hierarchial genemodel filtering}Hierarchial genemodel filtering} 
+\end{figure}
+
+
+
+\begin{lstlisting}
+
+### Merge files
+cat 05_transcripts.evm.gff3 MG20_mRNA_illumina_denovo.gff3 LJGI.051810.updated.gff3 augustus.EVM.gff3 accepted_hits.bam.pileup.2.updated.gtf genemark_hmm.EVM.gff3 20121017_glimmerHMM_arabidopsis.EVM.gff3> 20121108_combined.gff3
+
+### combine files remove overlapping
+python /u/vgupta/script/python/21q_combine_GTF.py 20121108_combined.gff3.refined > 20121116_merged_gene_models.gff3
+
+### add known protein coding genes from NCBI
+cat 20121116_merged_gene_models.gff3 20121227_conserved_proteins_mRNA_seq.gff3 > 20130223_TAU_conserved.gff3
+
+### sort the file
+cd /u/vgupta/01_genome_annotation/21_add_conseved_genes/run2
+python ~/script/python/21v_format_gff3.py -i 20130223_TAU_conserved.gff3 > 20130223_TAU_conserved.sorted.gff3
+
+\end{lstlisting}
+
+\subsection{Coding potential prediction}
+
+Genemodels based on the RNA-seq/transcrptional evidences did not have a coding region predicted. Using the non-redundant comined GFF3 files we extracted all the transcript and using the TAU tool, we predicted the protein coding potential for all the genes. 
+
+
+\begin{lstlisting}
+### Run TAU
+cd /u/vgupta/01_genome_annotation/28_final_gene_set/run9
+genome="/u/vgupta/lotus_3.0/lj_r30.fa"
+gff3="../run6/20130223_TAU_conserved.sorted.gff3"
+nohup nice -n 19 python /u/vgupta/script/python/21t_tau_20130611.py -f $genome -g $gff3 &
+
+SCRIPTDIR="/u/vgupta/script"
+
+### sort the output
+python "$SCRIPTDIR"/python/21v_format_gff3.py -i TAU_genemodel.gff3 > TAU_genemodel.gff3.sorted
+
+### correct for UTRs
+python "$SCRIPTDIR"/python/21ae_correct_UTR.py -i TAU_genemodel.gff3.sorted > TAU_genemodel.gff3.sorted.correctUTR
+
+### correct for strands
+python "$SCRIPTDIR"/python/21al_correct_strand.py -i TAU_genemodel.gff3.sorted.correctUTR > TAU_genemodel.gff3.sorted.correctUTR.correctStrand
+
+
+### make files with old ids
+gff3="TAU_genemodel.gff3.sorted.correctUTR.correctStrand"
+
+### fix cufflinks for one gene- one transcript prob
+python "$SCRIPTDIR"/python/21ak_remove_extra_cuff_gene.py -i $gff3 > $gff3.cuffFixed
+
+### sort the GFF3 file
+python "$SCRIPTDIR"/python/103_sort_gff_blocks.py -i $gff3.cuffFixed >  $gff3.cuffFixed.sorted
+
+### correct phase
+python "$SCRIPTDIR"/python/109_AddPhaseGFF3.py -i $gff3.cuffFixed.sorted> 20130627.Lj3.0.gff3.correctPhage
+grep -v 'UTR' 20130627.Lj3.0.gff3.correctPhage | awk '$4<$5' > 20130627.Lj3.0.gff3.correctPhage.noUTR
+key="20130627.Lj3.0.gff3.correctPhage.noUTR"
+GFF3="20130627.Lj3.0.gff3.correctPhage.noUTR"
+gffread $GFF3 -g $GENOME -w $key.exon.fa 
+gffread $GFF3 -g $GENOME -y $key.protein.fa
+gffread $GFF3 -g $GENOME -x $key.cds.fa
+
+### Count Ns (gap region) between the genes
+python "$SCRIPTDIR"/python/21ah_count_N_between_genes.py -g  $gff3 -f $GENOME > "$gff3"_GeneGaps_between_genes.txt
+#/u/vgupta/01_genome_annotation/26_addType/run5/20130313_lj3.0_GeneGaps_between_genes.txt
+
+### add the new names
+python "$SCRIPTDIR"/python/21ai_modify_gene_names.py -g $gff3 -n  /u/vgupta/01_genome_annotation/26_addType/run5/20130313_lj3.0_GeneGaps_between_genes.txt > $gff3.new_names
+
+
+### get the new names from the old MySQL table
+mysql -u vgupta -p gene_models < get_old_id.sql > 20130711_old_newID.txt
+
+### rename using old ids
+python "$SCRIPTDIR"/python/21ak_update_GFF3_IDsOnly.py -i $gff3.new_names -l 20130711_old_newID.txt > $gff3.correct_names
+# remember to update new ids for published proteins 
+
+### fix cufflinks for one gene- one transcript prob
+python "$SCRIPTDIR"/python/21ak_remove_extra_cuff_gene.py -i $gff3.correct_names > $gff3.correct_names.cuffFixed
+
+### sort the GFF3 file
+python "$SCRIPTDIR"/python/103_sort_gff_blocks.py -i  $gff3.correct_names.cuffFixed >  20130627.Lj3.0.gff3
+
+### correct phase
+python "$SCRIPTDIR"/python/109_AddPhaseGFF3.py -i 20130627.Lj3.0.gff3 > 20130627.Lj3.0.gff3.correctPhage
+grep -v 'UTR' 20130627.Lj3.0.gff3.correctPhage | awk '$4<$5' > 20130627.Lj3.0.gff3.correctPhage.noUTR
+key="20130627.Lj3.0.gff3.correctPhage.noUTR"
+GFF3="20130627.Lj3.0.gff3.correctPhage.noUTR"
+gffread $GFF3 -g $GENOME -w $key.exon.fa 
+gffread $GFF3 -g $GENOME -y $key.protein.fa
+gffread $GFF3 -g $GENOME -x $key.cds.fa
+\end{lstlisting}
+
+
+\subsubsection{Functional annotation}
+
+\subsubsubsection{Blastp}
+
+All the Lotus protein coding genes were annotated usig Blast veersion 2.2.26 against the non-redundant gene set.
+
+\begin{lstlisting}
+cd /home/vgupta/01_genome_annotation/28_FinalSet/01_proteins
+perl ~/script/perl/fasta_splitter.pl -n-parts-sequence 1000 20130802_Lj30_proteins.fa
+source /com/extra/BLAST/2.2.26/load.sh
+file_dir="/home/vgupta/01_genome_annotation/28_FinalSet/01_proteins"
+db="/home/vgupta/80_blastDatabases/nr"
+out="/home/vgupta/01_genome_annotation/28_FinalSet/01_proteins/blastout"
+for f in *.part* ;  do qx -q normal -n 1 -c 7 -v "blastp  -max_target_seqs=100 -num_threads=6 -db $db -query $file_dir/$f -outfmt 6 -out $out/$f.blastout" | qsub -l walltime=5:00:00 -N "qsub.script".$f; done
+\end{lstlisting}
+
+\subsubsubsection{IPRScan}
+
+Protein coding genes were scan for known domains using IPRScan version 4.8.
+
+\begin{lstlisting}
+#!/bin/bash
+#PBS -l nodes=1:ppn=1
+#PBS -q normal
+
+cd /home/vgupta/01_genome_annotation/25_InterProScan
+run_no=01
+logfile=`date "+20%y%m%d_%H%M"`'.logfile'.$run_no
+
+iprscan -cli -verbose -i Ljr_cds_protein.Ljr3.0.20130102.refined.part-"$run_no".fa -o Ljr_cds_protein.Ljr3.0.20130102.refined.part-"$run_no".fa.out -format raw -goterms -iprlookup
+
+\end{lstlisting}
 
 \section{Lotus accession resequencing}
 
+
 \subsection{Variant calling and filtering}
+We have analysed a polymorphic variations within the Lotus population. MG20, Gifu together Burttii together with other 28 japanese Lotus accessions were analyzed using the following GATK workflow.  
 
-\subsection{Analysis of phylogenetic relationships and LD}
+\pagebreak
 
-\subsection{SNP effect analysis}
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.60]{/Users/vgupta/Desktop/03_Lotus_annotation/2013_week35/BPP-wRR-white_small.png}
+\caption{\label{GATK workflow}Three sections of GATK pipeline} 
+\end{figure}
+
+We have divided work here into four major points:
+\newline 1. Initial read mapping
+\newline 2. Local realignment around indels
+\newline 3. Base quality score recalibration
+\newline 4. SNP and indel detection
+
+
+\subsubsection{Fastq Mapping}
+Fastq files were mapped to the Lotus genome 3.0 using the BWA version-0.7.5a-r405 with default parameters and with appropriate insert size for the pair-end libraries.  GATK pipeline does not support files without read groups so these were added whenever necessary with Picard \textit {AddOrReplaceReadgroup} function. All the mapped files are placed at genome.au.dk. 
+\url {/home/vgupta/LotusGenome/100_data/01_Jin_BamFile/02_withReadGroup}.
+
+\begin{lstlisting}
+source /com/extra/FastQC/0.10.1/load.sh
+source /com/extra/samtools/0.1.18/load.sh
+python ~/script/python/115_MapFastq.py \
+-f /home/vgupta/LotusGenome/100_data/20130801_Japan_sequencing/data1 \
+-x fastq \
+-r /home/vgupta/LotusGenome/ljr30/lj_r30.fa 
+\end{lstlisting}
+
+\subsubsection{Duplicate Marking}
+
+Duplicates were filtered using Picard toolkit version 1.96. Two things to remember when using Picard for duplicate filtering:
+\newline 1. Set \textit{VALIDATION\_STRINGENCY=LENIENT} otherwise Picard will not accept umapped read positions.
+\newline 2. Use \textit{TMP\_DIR} variable to a folder where you have sufficient space.\newline
+
+\subsubsection{Realiging the reads}
+Duplicate filtered reads are mapped back on the genome using RealignerTargetCreator and IndelRealigner commands from the GATK. All the fastq files must follow the sanger quality encoding. IndelRealigner locally aligns the reads to minimize the mismatches. Also many reads are misaligned due to presence of insertions and deletions, leading to many false discoveries of SNPs. 
+
+\subsubsection{Unified genotyper}
+Realigned bam files are parsed through the unified genotyper to procude a primary list of snp and indel list. -glm BOTH option must be used to predict indels together with SNPs. A higher degree of calling confidence cut-off can be used to insure minimal false positives. Unified genotyper uses a Bayesian genotype likelihood model to find genotypes and allele frequency in a population of N samples. It provides a posterior probability of there being a segregating variant allele at each locus as well as for the genotype of each sample.
+
+\subsubsection{Base Recalibrator}
+In this step, base quality scores are recalibrated. Given a set of high confidence SNPs from the earlier step, program calculates an empirical probability of error given the particular covariates seen at this site, where p(error) = num mismatches / num observations. 
+
+\begin{lstlisting}
+### read group using python script
+qx -q normal -n 1 -c 16 -v "python ~/script/python/117_addReadGroup.py --cores 15 -i /home/vgupta/LotusGenome/100_data/01_Jin_BamFile/temp/ -CN CARB -PL ILLUMINA -DS Burtii_20130605.bam -DT 20130822 -PI 0" | qsub -N qsub.script
+
+source /com/extra/samtools/0.1.19/load.sh
+source /com/extra/picard/1.74/load.sh
+source /com/extra/GATK/2.6-4/load.sh
+python ~/script/python/116_runGATK.py \
+-b Burtii_20130605.bam, Gifu_20130609.bam, mg004.bam, mg010.bam, mg012.bam, mg019.bam, mg023.bam, mg036.bam, mg049.bam, mg051.bam, mg062.bam, mg072.bam, mg073.bam, mg077.bam, mg080.bam, mg082.bam, mg083.bam, mg086.bam, mg089.bam, mg093.bam, mg095.bam, mg097.bam, mg101.bam, mg107.bam, mg109.bam, mg112.bam, MG20_genomic_20130609.bam \
+-r /home/vgupta/LotusGenome/ljr30/lj_r30.fa \
+-p /com/extra/picard/1.74/jar-bin \
+-g /com/extra/GATK/2.6-4/jar-bin \
+-t 10 \
+s
+
+\end{lstlisting}
+
+\section{Analysis of phylogenetic relationships and LD}
+
+\subsection{Phylogenetics}
+
+A phylogenetic tree was created based on the polymorphic positions among all the accession except Burttii. Phylogenetic distances were based on the genotypic difference. There are three possible genotypes 0/0 referece allele, 0/1 heterozygous allele and 1/1 alternative allele, these three cases were assigned as 0, 0.5 and 1 unit distance, respectively. 
+
+\begin{lstlisting}
+cd /home/vgupta/LotusGenome/04_Phylogenetics
+## genome
+cd  /home/vgupta/LotusGenome/03_VariantStig/02_withoutBurttii
+python ~/script/python/21bc_GenotypicDistance.py -i 20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu
+\end{lstlisting}
+
+
+\subsection{LD}
+
+A final list of markers was created by filtering the GATK output against previously known marker list. Most of the polymorphic variation was contributed by Burtti which have higher evolutionary distance compare to other accessions. Polymorphic variations were removed if caused only by Burttii in the calculation of LD to increase high quality SNPs, we also removed chromosome 0 as the genomic fragments on this chromosome are not in correct order.
+
+We used vcftools version 0.1.9 was used to calculate the linkage disequilibrium within the window of 500,000 base-pairs. A total of 200,000 randomly selected snp-pairs were plotted using R.  
+
+\begin{lstlisting}
+
+### Without Burttii
+source /com/extra/vcftools/0.1.9/load.sh
+awk '$1!="chr0"' /home/vgupta/LotusGenome/03_VariantStig/02_withoutBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu > /home/vgupta/LotusGenome/03_VariantStig/02_withoutBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.nochr0
+file="/home/vgupta/LotusGenome/03_VariantStig/02_withoutBurttii/20130905.snp.vcf.markers.snps.inbreed.ref.NoBurttiiGifu.nochr0"
+vcftools --vcf $file --geno-r2 --ld-window-bp 500000 --out 20131219_500kb_LD
+
+### 31 individuals
+cat 20131219_500kb_LD.geno.ld | awk '$4>30' | awk '{FS="\t";OFS="\t";}{print $1,$3-$2,$5}' > 20131219_500kb_LD.geno.ld.chr1-6.31 
+ 
+ shuf 20131219_500kb_LD.geno.ld.chr1-6.31| perl -pe '$_ =~ s/chr1/chr/' \
+| perl -pe '$_ =~ s/chr2/chr/' \
+| perl -pe '$_ =~ s/chr3/chr/' \
+| perl -pe '$_ =~ s/chr4/chr/' \
+| perl -pe '$_ =~ s/chr5/chr/' \
+| perl -pe '$_ =~ s/chr6/chr/' | head -n 500000 > 20131219_500kb_LD.geno.ld.chr1-6.31.500000
+
+\end{lstlisting}
+
+\begin{lstlisting}
+### R code
+setwd('~/Desktop/03_Lotus_annotation/2013_week50/')
+infile="20131219_500kb_LD.geno.ld.chr1-6.31.w100.s100"
+pdf(paste0(infile,'.pdf'),height=10,width=20)
+d<-read.table(infile)
+names(d)<-c("chr","pos","R2")
+
+infile2='20131219_500kb_LD.geno.ld.chr1-6.31.1000000'
+d2<-read.table(infile2)
+names(d2)<-c("chr","pos","R2")
+
+
+library(ggplot2)
+require(mgcv)
+d2 <- d2[1:200000,]
+ggplot(d, aes(x=pos, y=R2, col=chr)) + geom_point(data=d2, col='gray60',size=1) +theme_classic() + xlim(0,200000)+ stat_smooth(method = "loess", formula = y ~ x, colour="#CC0000", size = 3,  span = 0.001, se = FALSE)
+
+dev.off()
+
+\end{lstlisting}
+
+\section{snpEffect}
+
+Final set of markers from the GATK analysis of 31 accessions were subject to annotation process. Aim was to assign the genic region category and potential effect of the polumorphic variation on the protein if SNP is in protein coding region. We used SNPeff 3.1m to analyze the distribution of variants across exon, intron, coding region and intergenic space as well as based on the Lotus 3.0 protein coding regions, variants were also defined as sysnonymous and non-synonymous.  
+
+
+
+\begin{lstlisting}
+
+dir="/u/vgupta/01_genome_annotation/tools/snpEff"
+data_dir="/u/vgupta/01_genome_annotation/28_final_gene_set/run6"
+cd /u/vgupta/01_genome_annotation/tools/snpEff/data/lj3.0
+cp $data_dir/Lj3.0.gff3.refined ./Lj3.0.gff3
+mv Lj3.0.gff3 genes.gff
+### database built
+cd $dir
+java -jar snpEff.jar build -gff3 -v lj3.0
+
+### snps
+cd /u/vgupta/08_snpEff/01_GATKsnps
+file="20130905.snp.vcf.markers.snps.inbreed.ref"
+java -Xmx4g -jar /u/vgupta/01_genome_annotation/tools/snpEff/snpEff.jar eff -c /u/vgupta/01_genome_annotation/tools/snpEff/snpEff.config -v lj3.0 $file > $file.snpEff
+mv snpEff_summary.html 20130923_snp.snpEff_summary.html
+mv snpEff_genes.txt 20130923_snp.snpEff_genes.txt
+
+### indels
+cd /u/vgupta/08_snpEff/01_GATKsnps
+file="20130905.snp.vcf.markers.indels.inbreed.ref"
+java -Xmx4g -jar /u/vgupta/01_genome_annotation/tools/snpEff/snpEff.jar eff -c /u/vgupta/01_genome_annotation/tools/snpEff/snpEff.config -v lj3.0 $file > $file.snpEff
+mv snpEff_summary.html 20130923_indel.snpEff_summary.html
+mv snpEff_genes.txt 20130923_indel.snpEff_genes.txt
+
+\end{lstlisting}
+
+
+\section{Prank based alignments}
+
+
+This document is a quick description for the positive selection test pipeline. Method is very similar to suggested by Victor Albert and we have used the codeML control and test parameters supplemented by his lab. I will attach maximum information but if anything missing you can always fetch script from the my GitHub \url {https://github.com/vikas0633/python}.
+
+
+\subsection{Input data}
+We have downloaded three cds fasta files for \href{ftp://ftp.arabidopsis.org/home/tair/Sequences/blast_datasets/TAIR10_blastsets/TAIR10_cds_20101214_updated}{Arabidopsis}, \href{ftp://ftp.plantgdb.org/download/Genomes/GmGDB/Gmax_109_cds.fa.gz}{Glycine max} and \href{ftp://ftp.jcvi.org/pub/data/m_truncatula/Mt4.0/Annotation/Mt4.0v1/Mt4.0v1_GenesCDSSeq_20130731_1800.fasta}{Medicago}. 
+\newline
+\newline
+Lotus CDS fasta file is at:
+\newline
+\~/vgupta/lotus\_3.0/20130802\_Lj30\_CDS.fa
+\newline
+\newline
+Ortholog groups were extrated from results provided by Vic are at:
+\newline
+\~/vgupta/01\_genome\_annotation/32\_prank/01\_PositiveSelectionCandidate/20131213\_orthoGroups.lotus.txt 
+\newline
+\newline
+\begin{lstlisting}
+### Arabidosis
+wget ftp://ftp.arabidopsis.org/home/tair/Sequences/blast_datasets/TAIR10_blastsets/TAIR10_cds_20101214_updated
+### Glycin max
+wget ftp://ftp.plantgdb.org/download/Genomes/GmGDB/Gmax_109_cds.fa.gz
+### Medicago 
+wget ftp://ftp.jcvi.org/pub/data/m_truncatula/Mt4.0/Annotation/Mt4.0v1/Mt4.0v1_GenesCDSSeq_20130731_1800.fasta
+
+\end{lstlisting}
+
+\subsection{Installation}
+
+\subsubsection{Prank}
+http://code.google.com/p/prank-msa/wiki/PRANK
+
+\subsubsection{Gblocks}
+http://bioweb2.pasteur.fr/docs/gblocks/#Installation
+
+\subsubsection{Codeml}
+http://abacus.gene.ucl.ac.uk/software/pamlX-1.1-x11-x86_64.tgz
+
+\subsubsection{pchisq}
+http://stat.ethz.ch/R-manual/R-patched/library/stats/html/Chisquare.html
+
+\subsubsection{seqret}
+http://emboss.open-bio.org/rel/dev/apps/seqret.html
+
+\subsection{Data Analsis}
+
+\subsubsection{Spliting fasta}
+First step is to create individual fasta file where each contains homologous sequences for four species and it done using custom python script.
+
+\newline
+\begin{lstlisting}
+### grep orthogroup sequences
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/01_fasta
+python ~/script/python/21bf_ortho2fasta.py -i ../20130103_orthoGroups.lotus.txt -f /array/users/vgupta/01_genome_annotation/32_prank/01_PositiveSelectionCandidate/01_fasta/02_cds/Lj_Gm_Mt_At.cds.fa
+\end{lstlisting}
+
+\subsubsection{Creating alignments}
+While running the Prank remember to used -codon option for codon based alignments.
+
+\newline
+\begin{lstlisting}
+### run prank
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/01_fasta
+for file in Lj*.fa
+do
+prank -d=$file -o=$file -showall -codon -F
+done
+\end{lstlisting}
+
+\subsubsection{Filtering alignments}
+Again remember to use -t=c for the codon based filtering. An example output from the Gblocks is shown in the figure 1, blue region is cosidered as good alignment region.
+
+\newline
+\begin{lstlisting}
+### run Gblocks
+for file in *.best.fas
+do 
+Gblocks $file -t=c -d=y
+done
+\end{lstlisting}
+
+\newpage
+
+\begin{figure}[hb]
+\centering 
+\includegraphics[scale=0.50]{/Users/vgupta/Desktop/03_Lotus_annotation/2014_week1/gblocks.png}
+\caption{\label{Gblocks}GblocksExample} 
+\end{figure}
+
+\newpage
+
+\subsubsection{Data munging}
+Gblocks outputs genbank format files and CodeML requires Phylip format file so a bit data format transformation is done using below code. Also I have added #1 to all Lotus branches using sed regular expession.
+
+
+\begin{lstlisting}
+## gb to fas
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/04_gb
+for file in *-gb
+do
+seqret -sequence $file -outseq $file.fas
+done
+
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/04_gb
+## fas to phy
+for file in *.fas
+do
+perl ~/script/perl/MFAtoPHY.pl $file
+done
+
+### add the # in the end file
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/03_dnd
+for file in *.best.dnd
+do
+sed -e 's/\(Lj[a-zA-Z0-9]*\.[a-zA-Z0-9]\:[a-zA-Z0-9]*\.[a-zA-Z0-9]*\)/\1 #1/' $file > $file.1
+done
+
+\end{lstlisting}
+
+\subsubsection {Running CodeML}
+CodeML runs only one alignement at a time and each time it requires a parameter file with individual file path. Follwing code loops over files one after another, replacing file paths in the parameter files and running CodeML. 
+
+
+\begin{lstlisting}
+
+### Control
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/06_model_bs_ctrl
+for file in /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/05_phy/*.phy
+do
+echo $file
+id=`echo $file | awk -F"/" '{print $NF}' | awk -F"." '{print $1}'`
+seqfile=$file
+treefile="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/03_dnd/"$id".fa.best.dnd.1"
+outfile=$id".out"
+awk -v var="$seqfile" ' {split ($0, arr, "="); if ($0~/seqfile/) print arr[1]"=" var; else print $0};' 06_PS_control.txt | awk -v var="$treefile" ' {split ($0, arr, "="); if ($0~/treefile/) print arr[1]"=" var; else print $0};'| awk -v var="$outfile" ' {split ($0, arr, "="); if ($0~/outfile/) print arr[1]"=" var; else print $0};' > temp.txt
+codeml temp.txt
+done
+
+### Test
+cd /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/07_model_ps_test
+for file in /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/05_phy/*.phy
+do
+echo $file
+id=`echo $file | awk -F"/" '{print $NF}' | awk -F"." '{print $1}'`
+seqfile=$file
+treefile="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/03_dnd/"$id".fa.best.dnd.1"
+outfile=$id".out"
+awk -v var="$seqfile" ' {split ($0, arr, "="); if ($0~/seqfile/) print arr[1]"=" var; else print $0};' 07_model_ps_test.txt | awk -v var="$treefile" ' {split ($0, arr, "="); if ($0~/treefile/) print arr[1]"=" var; else print $0};'| awk -v var="$outfile" ' {split ($0, arr, "="); if ($0~/outfile/) print arr[1]"=" var; else print $0};' > temp.txt
+codeml temp.txt
+done
+\end{lstlisting}
+
+\subsubsection{Parsing CodeML output}
+
+To do a loglikelihood test, we needed the likelihood values from the control and test CodeML output files and use a chi-square test with one degree of freedom to test the significance.
+
+\begin{lstlisting}
+### fetch the likelihood values
+for file in /array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/06_model_bs_ctrl/*.out;
+do
+id=`echo $file | awk -F"/" '{print $NF}' | awk -F"." '{print $1}'`
+file="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/06_model_bs_ctrl"/"$id".out
+Ctrl_lnL=`grep lnL $file | awk '{split($0, a, " "); print a[5]}'`
+file="/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/07_model_ps_test"/"$id".out
+test_lnL=`grep lnL $file | awk '{split($0, a, " "); print a[5]}'`
+echo -n $id,$Ctrl_lnL,$test_lnL;
+echo ;
+done
+\end{lstlisting}
+
+\subsubsection{Chi-square test}
+Chi-square test was done using a R fucntion called pchiseq.
+
+\url{http://www.ndsu.edu/pubweb/~mcclean/plsc431/mendel/mendel4.htm}
+
+\begin{lstlisting}
+
+d <- read.table('/Volumes/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/08_PS_compare/20140106_lnL.txt', sep = ',')
+diff_df = 1
+colnames(d) <- c("LjID", "Control_lnL","Test_lnL")
+
+d$diff.2 <- 2*abs(d$Test_lnL - d$Control_lnL)
+d$p_value <- 1 - pchisq( d$diff.2 , df =  diff_df)
+
+write.table(d, file='/Volumes/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/08_PS_compare/20140106_lnL.p_value', sep="\t", row.names =F, quote = F)
+
+\end{lstlisting}
+
+\subsection{Comparing with Vic's list}
+
+P-values from the Prank and Muscle alignment based resutls has been loaded into a MySQL database. There were a total 281 candidate significant in both list. 
+
+\begin{lstlisting}
+### Make MySQL table
+CREATE TABLE `20140106_PS_comp`  (Lj30_ID VARCHAR(100), Prank FLOAT, Vic FLOAT);
+LOAD DATA LOCAL INFILE '/array/users/vgupta/01_genome_annotation/32_prank/02_AllGeneCandidates/08_PS_compare/20140106_lnL.comp.txt' INTO TABLE  `20140106_PS_comp`;
+CREATE INDEX `20140106_PS_comp.index` ON `20140106_PS_comp` (Lj30_ID);
+
+
+mysql> select count(*) from 20140106_PS_comp WHERE Prank<0.01  AND Vic<0.01 ; 
++----------+
+| count(*) |
++----------+
+|      281 |
++----------+
+1 row in set (0.01 sec)
+
+\end{lstlisting}
+
+
+\pagebreak
+\section{Python Script}
+\lstinputlisting [numbers=left,style=Python,caption=Map Fastq,
+    label={115_MapFastq.py},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/115_MapFastq.py}
+\lstinputlisting [numbers=left,style=Python,caption=GATK pipeline,
+    label={116_runGATK.py},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/116_runGATK.py}
+\lstinputlisting [numbers=left,style=Python,caption=vcfParser,
+    label={119_vcfParser.py},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/119_vcfParser.py}
+\lstinputlisting [numbers=left,style=Python,caption=classVCF,
+    label={classVCF.pyy},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/classVCF.py}
+\lstinputlisting [numbers=left,style=Python,caption=GenotypicDistance,
+    label={21bc_GenotypicDistance.py},
+    breaklines=true,]{/Users/vgupta/Desktop/script/python/21bc_GenotypicDistance.py}
 
 \end{document}

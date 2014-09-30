@@ -1,0 +1,81 @@
+%% LyX 2.0.6 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass{article}
+\usepackage[sc]{mathpazo}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+\usepackage{url}
+\usepackage[unicode=true,pdfusetitle,
+ bookmarks=true,bookmarksnumbered=true,bookmarksopen=true,bookmarksopenlevel=2,
+ breaklinks=false,pdfborder={0 0 1},backref=false,colorlinks=false]
+ {hyperref}
+\hypersetup{
+ pdfstartview={XYZ null null 1}}
+\usepackage{listings}
+\lstloadlanguages{Python}
+\usepackage{pgfplotstable}
+\usepackage{csvsimple}
+
+
+\begin{document}
+\definecolor{keywords}{RGB}{255,0,90}
+\definecolor{comments}{RGB}{0,0,113}
+\definecolor{red}{RGB}{160,0,0}
+\definecolor{green}{RGB}{0,150,0}
+ 
+ 
+\lstset{framextopmargin=50pt}
+\lstset{language=Python, 
+        basicstyle=\ttfamily\small, 
+        keywordstyle=\color{keywords},
+        commentstyle=\color{comments},
+        stringstyle=\color{red},
+        showstringspaces=false,
+        identifierstyle=\color{green},
+        breaklines=true}
+        
+\renewcommand\thesection{\arabic{section}}
+
+%%% for TOC with numbering
+
+\title{Trifolium Pallescens genome annotation}
+
+
+\author{Vikas Gupta and Stig U. Andersen}
+
+\maketitle
+\setcounter{secnumdepth}{5}
+\setcounter{tocdepth}{5}
+\tableofcontents
+\newpage
+
+
+% add dot after number
+\makeatletter
+\g@addto@macro\thesection.
+\makeatother
+
+<<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
+# set global chunk options
+opts_chunk$set(fig.path='figure/minimal-', fig.align='center', fig.show='hold')
+options(replace.assign=TRUE,width=90)
+@
+
+\section{Data}
+
+<<FileSummary, include=TRUE,cache=TRUE>>=
+# p <- path.expand("/Volumes/GenomeDK/LotusGenome/01_vgupta/11_clover/20140709_clover_pallescens/RogerMoraga")
+# setwd(p)
+# p
+# ## File size
+# a <- system("ls -lh | awk '{print $9,$5}'",intern=TRUE)
+# 
+# for (i in a){
+#     print (i)
+# }
+# 
+# @
+
+\end{document}
